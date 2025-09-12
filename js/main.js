@@ -596,10 +596,13 @@
             const userPrompt = `这是关于一个职业的攻略资料：\n\n${context}\n\n---
             现在，请根据以上资料，回答这位玩家的问题： "${userQuery}"`;
             
-            const apiKey = "";
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+            const response = await fetch('/api/ai-advice', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ systemPrompt, userPrompt })
+            });
 
-            try {
+try {
                 const response = await fetch(apiUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
