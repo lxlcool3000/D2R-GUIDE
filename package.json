@@ -1,7 +1,7 @@
 {
   "name": "d2r-guide-prod",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "scripts": {
     "build:css": "tailwindcss -i ./css/input.css -o ./css/tailwind.css --minify",
     "serve": "node server.js"
