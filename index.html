@@ -5,11 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- 关键修正：添加内容安全策略(CSP)，允许应用连接到外部API和CDN资源 -->
 <title>暗黑破坏神2：重制版 交互式职业攻略</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- Local styles (no CDN) -->
+    <link rel="stylesheet" href="css/tailwind.css">
+    <link rel="stylesheet" href="css/styles.css">
+    <!-- Local Chart.js UMD bundle (no CDN) -->
+    <script src="js/vendor/chart.umd.min.js"></script>
+    <!-- Optional: local fonts; add files and uncomment in css/fonts.css -->
+    <!-- <link rel="stylesheet" href="css/fonts.css"> -->
     <!-- Chosen Palette: Sanctuary Stone -->
     <!-- Application Structure Plan: The application is designed as a single-page dashboard. The core structure features a main navigation bar with the seven classes. The default view presents a comparative analysis chart of all classes across key gameplay aspects (leveling, farming, support), allowing users to make an informed initial choice. Clicking a class icon dynamically updates the main content area to display that class's detailed guide. This guide is further organized into collapsible sections (Builds, Gear, etc.) for clarity. This non-linear, task-oriented structure was chosen because it allows users to quickly access specific information without scrolling through irrelevant content, which is far more efficient than a linear document layout. A searchable rune/runeword appendix, a tips modal, a top-tier gear list, a useful bases guide, and a list of top farming targets are available for quick reference. A new Gemini API feature, an AI Build Advisor, is added to provide personalized recommendations. The final addition is an interactive Breakpoint Calculator. New modals for Mercenaries and Crafting have been added. Filtering functionality for key data lists is the latest enhancement. -->
     <!-- Visualization & Content Choices: 1. Class Comparison -> Goal: Compare -> Viz: Interactive Radar Chart (Chart.js) -> Interaction: Hover to highlight, click legend to toggle -> Justification: Provides an immediate, holistic view of each class's profile and strengths. 2. Equipment Progression -> Goal: Organize -> Viz: Styled HTML cards with icons -> Interaction: Reading -> Justification: Clearly separates gear by game stage with visual cues, making it easy to digest. 3. Build Details -> Goal: Organize/Inform -> Viz: Collapsible accordions (HTML/JS) -> Interaction: Click to expand/collapse -> Justification: Hides complex information by default, preventing visual overload. 4. Runeword/Tips/Gear/Bases/MF Targets/Mercs/Crafting -> Goal: Inform/Filter -> Viz: Searchable/filterable list in a modal -> Interaction: User types in search box and selects from dropdowns to narrow results -> Justification: Transforms static lists into powerful, interactive databases. 5. AI Build Advisor -> Goal: Synthesize & Recommend -> Viz: Text input + Modal Display -> Interaction: User types query, clicks button to get a Gemini-generated response -> Justification: Leverages LLM to create personalized advice based on the app's internal data, offering a dynamic, high-value feature. 6. Breakpoint Calculator -> Goal: Inform/Optimize -> Viz: Dropdown selectors and a dynamic table -> Interaction: User selects class/stat, table updates to show data -> Justification: Provides critical, technical optimization data in an easy-to-use interactive format, elevating the app to a true utility. -->
@@ -747,8 +749,99 @@
 
         let currentClass = 'home';
         let chartInstance = null;
-        let radarRenderScheduled = false;
-        let radarInitialized = false;
+        const radarVisible = { necromancer:true, paladin:true, sorceress:true, amazon:true, assassin:true, barbarian:true, druid:true };
+
+        // Lightweight offline radar renderer (fallback for inline/file://)
+        function drawOfflineRadar(canvas, labels, datasets) {
+            if (!canvas) return;
+            const dpr = (window.devicePixelRatio || 1);
+            const parent = canvas.parentElement;
+            const rect = parent ? parent.getBoundingClientRect() : canvas.getBoundingClientRect();
+            const cssW = Math.max(320, Math.floor(rect.width || 700));
+            const cssH = Math.max(300, Math.floor(rect.height || 450));
+            canvas.width = Math.floor(cssW * dpr);
+            canvas.height = Math.floor(cssH * dpr);
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
+            ctx.scale(dpr, dpr);
+            ctx.clearRect(0,0,cssW,cssH);
+            const cx = cssW/2, cy = cssH/2; const radius = Math.min(cssW, cssH)*0.38;
+            const N = labels.length || 6;
+            const step = (Math.PI*2)/N;
+            // Draw grid
+            ctx.strokeStyle = 'rgba(168,162,158,0.3)'; ctx.lineWidth = 1;
+            for (let ring=1; ring<=5; ring++){
+                const r = radius*ring/5; ctx.beginPath();
+                for (let i=0;i<N;i++){
+                    const ang = -Math.PI/2 + i*step;
+                    const x = cx + Math.cos(ang)*r; const y = cy + Math.sin(ang)*r;
+                    if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+                }
+                ctx.closePath(); ctx.stroke();
+            }
+            // Axis lines
+            for (let i=0;i<N;i++){
+                const ang = -Math.PI/2 + i*step;
+                ctx.beginPath(); ctx.moveTo(cx,cy);
+                ctx.lineTo(cx + Math.cos(ang)*radius, cy + Math.sin(ang)*radius);
+                ctx.stroke();
+            }
+            // Axis labels
+            try {
+                ctx.fillStyle = '#facc15';
+                ctx.font = '14px sans-serif';
+                for (let i=0;i<N;i++){
+                    const ang = -Math.PI/2 + i*step;
+                    const lx = cx + Math.cos(ang)*(radius+16);
+                    const ly = cy + Math.sin(ang)*(radius+16);
+                    const t = labels[i] || '';
+                    if (Math.cos(ang) > 0.3) ctx.textAlign = 'left';
+                    else if (Math.cos(ang) < -0.3) ctx.textAlign = 'right';
+                    else ctx.textAlign = 'center';
+                    if (Math.sin(ang) > 0.3) ctx.textBaseline = 'top';
+                    else if (Math.sin(ang) < -0.3) ctx.textBaseline = 'bottom';
+                    else ctx.textBaseline = 'middle';
+                    ctx.fillText(t, lx, ly);
+                }
+            } catch {}
+            // Draw datasets (0-10 scale)
+            const toRGBA = (hex, alpha) => hex.replace('rgb(', 'rgba(').replace(')', `, ${alpha})`);
+            datasets.forEach(ds=>{
+                if (radarVisible.hasOwnProperty(ds.id) && !radarVisible[ds.id]) return;
+                const vals = ds.data || [];
+                ctx.beginPath();
+                for (let i=0;i<N;i++){
+                    const v = Math.max(0, Math.min(10, vals[i]||0));
+                    const r = radius*(v/10);
+                    const ang = -Math.PI/2 + i*step;
+                    const x = cx + Math.cos(ang)*r; const y = cy + Math.sin(ang)*r;
+                    if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+                }
+                ctx.closePath();
+                const fillCol = (ds.color && ds.color.bg) ? ds.color.bg : (ds.backgroundColor || 'rgba(250,204,21,0.2)');
+                const strokeCol = (ds.color && ds.color.border) ? ds.color.border : (ds.borderColor || 'rgb(250,204,21)');
+                ctx.fillStyle = fillCol;
+                ctx.strokeStyle = strokeCol;
+                ctx.lineWidth = 2; ctx.fill(); ctx.stroke();
+            });
+        }
+
+        function ensureRadarLegend(containerEl, datasets) {
+            if (!containerEl) return;
+            // Attach legend to the card container (one level up) to avoid being clipped by fixed-height chart container
+            const host = containerEl.parentElement || containerEl;
+            let legend = host.querySelector('.radar-legend');
+            if (!legend) { legend = document.createElement('div'); legend.className = 'radar-legend flex flex-wrap gap-2 justify-center mt-2'; host.appendChild(legend); }
+            legend.innerHTML = '';
+            datasets.forEach(ds => {
+                const btn = document.createElement('button');
+                const active = radarVisible[ds.id] !== false;
+                btn.className = 'px-2 py-0.5 rounded text-xs border ' + (active ? 'bg-amber-500 text-stone-950 border-amber-600' : 'bg-stone-800 text-stone-300 border-stone-600 hover:bg-stone-700');
+                btn.textContent = classLabelFor(ds.id, ds.id);
+                btn.onclick = () => { radarVisible[ds.id] = !active; renderRadarChart(); };
+                legend.appendChild(btn);
+            });
+        }
         
         const mainContent = document.getElementById('main-content');
         const classNav = document.getElementById('class-nav');
@@ -1605,9 +1698,9 @@
                 // BP type select options
                 try { const bpSel = document.getElementById('bpTypeSelect'); if (bpSel && ui.bp_types) { [...bpSel.options].forEach(o=>{ if (ui.bp_types[o.value]) o.textContent = ui.bp_types[o.value]; }); } } catch {}
                 // Recreate radar chart on language change
-                radarInitialized = false;
                 if (chartInstance && typeof chartInstance.destroy === 'function') { try { chartInstance.destroy(); } catch {} }
                 chartInstance = null;
+                try { renderRadarChart(); } catch {}
             }
 
             // Initial chips render
@@ -1797,9 +1890,7 @@
             contentHtml += `</div>`;
             mainContent.innerHTML = contentHtml;
 
-            if (classId === 'home') {
-                renderRadarChart();
-            }
+            if (classId === 'home') { renderRadarChart(); }
         }
         
         function navigate(classId) {
@@ -1831,66 +1922,47 @@
         }
 
         function renderRadarChart() {
-            if (radarRenderScheduled) return;
-            radarRenderScheduled = true;
-            requestAnimationFrame(() => {
-                radarRenderScheduled = false;
-                if (radarInitialized) return;
-                const canvas = document.getElementById('classComparisonChart');
-                if (!canvas) return;
-                const ChartLib = (typeof globalThis !== 'undefined' && globalThis.Chart) ? globalThis.Chart : (typeof window !== 'undefined' ? window.Chart : null);
-                if (!ChartLib) { console.warn('Chart.js not available'); return; }
-                try { ChartLib.defaults.animation = false; } catch {}
-                const ui = uiDict();
-                const labels = [ui.radar.clear, ui.radar.single, ui.radar.survivability, ui.radar.support, ui.radar.mobility, ui.radar.leveling, ui.radar.bossing];
-                const ds = [
-                  { id: 'necromancer', color: {bg:'rgba(130, 130, 130, 0.2)', border:'rgb(200, 200, 200)'}, data: [9, 6, 9, 9, 3, 9, 7] },
-                  { id: 'paladin',    color: {bg:'rgba(54, 162, 235, 0.2)',  border:'rgb(54, 162, 235)'},  data: [10, 9, 8, 9, 4, 8, 10] },
-                  { id: 'sorceress',  color: {bg:'rgba(255, 99, 132, 0.2)',  border:'rgb(255, 99, 132)'},  data: [10, 7, 5, 5, 10, 9, 8] },
-                  { id: 'amazon',     color: {bg:'rgba(255, 205, 86, 0.2)', border:'rgb(255, 205, 86)'}, data: [9, 9, 6, 2, 6, 4, 9] },
-                  { id: 'assassin',   color: {bg:'rgba(75, 192, 192, 0.2)', border:'rgb(75, 192, 192)'}, data: [8, 7, 7, 4, 7, 7, 9] },
-                  { id: 'barbarian',  color: {bg:'rgba(255, 159, 64, 0.2)', border:'rgb(255, 159, 64)'}, data: [6, 8, 8, 8, 5, 2, 6] },
-                  { id: 'druid',      color: {bg:'rgba(153, 102, 255, 0.2)', border:'rgb(153, 102, 255)'}, data: [7, 6, 10, 8, 4, 6, 8] }
-                ];
-                const datasets = ds.map(x => ({ label: classLabelFor(x.id, x.id), data: x.data, fill: true, backgroundColor: x.color.bg, borderColor: x.color.border, pointBackgroundColor: x.color.border }));
-                const config = {
-                    type: 'radar',
-                    data: { labels, datasets },
-                    options: {
-                        maintainAspectRatio: false,
-                        responsive: true,
-                        elements: { line: { tension: 0.1 } },
-                        plugins: {
-                            title: { display: true, text: ui.radar_title, color: '#facc15', font: { size: 18 } },
-                            legend: {
-                                position: 'bottom',
-                                labels: { color: '#d6d3d1' },
-                                onHover: (event) => { if (event && event.native && event.native.target) event.native.target.style.cursor = 'pointer'; },
-                                onLeave: (event) => { if (event && event.native && event.native.target) event.native.target.style.cursor = 'default'; }
-                            }
-                        },
-                        scales: {
-                            r: {
-                                angleLines: { color: 'rgba(168, 162, 158, 0.3)' },
-                                grid: { color: 'rgba(168, 162, 158, 0.3)' },
-                                pointLabels: { color: '#facc15', font: { size: 14 } },
-                                ticks: { backdropColor: '#1a1a1a', color: '#d6d3d1', stepSize: 2 },
-                                min: 0,
-                                max: 10
-                            }
+            const canvas = document.getElementById('classComparisonChart');
+            if (!canvas) return;
+            // Safely destroy previous chart only if context exists
+            if (chartInstance && typeof chartInstance.destroy === 'function' && chartInstance.ctx) {
+                try { chartInstance.destroy(); } catch {}
+            }
+            chartInstance = null;
+            const ui = uiDict();
+            const labels = [ui.radar.clear, ui.radar.single, ui.radar.survivability, ui.radar.support, ui.radar.mobility, ui.radar.leveling, ui.radar.bossing];
+            const ds = [
+              { id: 'necromancer', color: {bg:'rgba(130, 130, 130, 0.2)', border:'rgb(200, 200, 200)'}, data: [9, 6, 9, 9, 3, 9, 7] },
+              { id: 'paladin',    color: {bg:'rgba(54, 162, 235, 0.2)',  border:'rgb(54, 162, 235)'},  data: [10, 9, 8, 9, 4, 8, 10] },
+              { id: 'sorceress',  color: {bg:'rgba(255, 99, 132, 0.2)',  border:'rgb(255, 99, 132)'},  data: [10, 7, 5, 5, 10, 9, 8] },
+              { id: 'amazon',     color: {bg:'rgba(255, 205, 86, 0.2)', border:'rgb(255, 205, 86)'}, data: [9, 9, 6, 2, 6, 4, 9] },
+              { id: 'assassin',   color: {bg:'rgba(75, 192, 192, 0.2)', border:'rgb(75, 192, 192)'}, data: [8, 7, 7, 4, 7, 7, 9] },
+              { id: 'barbarian',  color: {bg:'rgba(255, 159, 64, 0.2)', border:'rgb(255, 159, 64)'}, data: [6, 8, 8, 8, 5, 2, 6] },
+              { id: 'druid',      color: {bg:'rgba(153, 102, 255, 0.2)', border:'rgb(153, 102, 255)'}, data: [7, 6, 10, 8, 4, 6, 8] }
+            ];
+            if (typeof Chart === 'undefined') { console.warn('Chart.js not available'); return; }
+            chartInstance = new Chart(canvas, {
+                type: 'radar',
+                data: { labels, datasets: ds.map(x => ({ label: classLabelFor(x.id, x.id), data: x.data, fill: true, backgroundColor: x.color.bg, borderColor: x.color.border, pointBackgroundColor: x.color.border })) },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    elements: { line: { tension: 0.1 } },
+                    plugins: {
+                        title: { display: true, text: ui.radar_title, color: '#facc15', font: { size: 18 } },
+                        legend: { position: 'bottom', labels: { color: '#d6d3d1' } }
+                    },
+                    scales: {
+                        r: {
+                            angleLines: { color: 'rgba(168, 162, 158, 0.3)' },
+                            grid: { color: 'rgba(168, 162, 158, 0.3)' },
+                            pointLabels: { color: '#facc15', font: { size: 14 } },
+                            ticks: { backdropColor: '#1a1a1a', color: '#d6d3d1', stepSize: 2 },
+                            min: 0,
+                            max: 10
                         }
                     }
-                };
-                const safeInit = (cnv) => { try { chartInstance = new ChartLib(cnv, config); } catch (err) { console.warn('chart init error', err); } };
-                // Always render on a fresh canvas to avoid first-frame clear() errors
-                let target = canvas;
-                if (canvas.parentNode) {
-                    const fresh = document.createElement('canvas');
-                    fresh.id = 'classComparisonChart';
-                    try { canvas.parentNode.replaceChild(fresh, canvas); target = fresh; } catch {}
                 }
-                radarInitialized = true;
-                safeInit(target);
             });
         }
         
