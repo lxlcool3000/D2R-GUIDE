@@ -32,15 +32,13 @@ jobs:
       - name: Build Tailwind CSS
         run: npm run build:css
 
-      - name: Prepare static site
-        run: |
-          mkdir -p dist-site
-          cp -r index.html favicon.svg css js assets dist-site/ 2>/dev/null || true
+      - name: Pack inline site (dist-inline)
+        run: npm run pack:inline
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: dist-site
+          path: dist-inline
 
   deploy:
     needs: build
@@ -52,4 +50,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
-
