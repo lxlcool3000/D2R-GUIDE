@@ -4,8 +4,7 @@
   "version": "1.0.1",
   "scripts": {
     "build:css": "tailwindcss -i ./css/input.css -o ./css/tailwind.css --minify",
-    "serve": "node server.js",
-    "pack:inline": "node tools/pack-inline.mjs"
+    "serve": "node server.js"
   },
   "devDependencies": {
     "tailwindcss": "^3.4.10"

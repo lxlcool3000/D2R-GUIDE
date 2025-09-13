@@ -8,8 +8,8 @@
     <!-- Local styles (no CDN) -->
     <link rel="stylesheet" href="css/tailwind.css">
     <link rel="stylesheet" href="css/styles.css">
-    <!-- Local Chart.js UMD bundle (no CDN) -->
-    <script src="js/vendor/chart.umd.min.js"></script>
+    <!-- Local Chart.js (v3.9.1) -->
+    <script src="js/vendor/chart.min.js"></script>
     <!-- Optional: local fonts; add files and uncomment in css/fonts.css -->
     <!-- <link rel="stylesheet" href="css/fonts.css"> -->
     <!-- Chosen Palette: Sanctuary Stone -->
@@ -1922,46 +1922,57 @@
         }
 
         function renderRadarChart() {
-            const canvas = document.getElementById('classComparisonChart');
-            if (!canvas) return;
-            // Safely destroy previous chart only if context exists
-            if (chartInstance && typeof chartInstance.destroy === 'function' && chartInstance.ctx) {
-                try { chartInstance.destroy(); } catch {}
-            }
-            chartInstance = null;
-            const ui = uiDict();
-            const labels = [ui.radar.clear, ui.radar.single, ui.radar.survivability, ui.radar.support, ui.radar.mobility, ui.radar.leveling, ui.radar.bossing];
-            const ds = [
-              { id: 'necromancer', color: {bg:'rgba(130, 130, 130, 0.2)', border:'rgb(200, 200, 200)'}, data: [9, 6, 9, 9, 3, 9, 7] },
-              { id: 'paladin',    color: {bg:'rgba(54, 162, 235, 0.2)',  border:'rgb(54, 162, 235)'},  data: [10, 9, 8, 9, 4, 8, 10] },
-              { id: 'sorceress',  color: {bg:'rgba(255, 99, 132, 0.2)',  border:'rgb(255, 99, 132)'},  data: [10, 7, 5, 5, 10, 9, 8] },
-              { id: 'amazon',     color: {bg:'rgba(255, 205, 86, 0.2)', border:'rgb(255, 205, 86)'}, data: [9, 9, 6, 2, 6, 4, 9] },
-              { id: 'assassin',   color: {bg:'rgba(75, 192, 192, 0.2)', border:'rgb(75, 192, 192)'}, data: [8, 7, 7, 4, 7, 7, 9] },
-              { id: 'barbarian',  color: {bg:'rgba(255, 159, 64, 0.2)', border:'rgb(255, 159, 64)'}, data: [6, 8, 8, 8, 5, 2, 6] },
-              { id: 'druid',      color: {bg:'rgba(153, 102, 255, 0.2)', border:'rgb(153, 102, 255)'}, data: [7, 6, 10, 8, 4, 6, 8] }
-            ];
-            if (typeof Chart === 'undefined') { console.warn('Chart.js not available'); return; }
-            chartInstance = new Chart(canvas, {
-                type: 'radar',
-                data: { labels, datasets: ds.map(x => ({ label: classLabelFor(x.id, x.id), data: x.data, fill: true, backgroundColor: x.color.bg, borderColor: x.color.border, pointBackgroundColor: x.color.border })) },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    elements: { line: { tension: 0.1 } },
-                    plugins: {
-                        title: { display: true, text: ui.radar_title, color: '#facc15', font: { size: 18 } },
-                        legend: { position: 'bottom', labels: { color: '#d6d3d1' } }
-                    },
-                    scales: {
-                        r: {
-                            angleLines: { color: 'rgba(168, 162, 158, 0.3)' },
-                            grid: { color: 'rgba(168, 162, 158, 0.3)' },
-                            pointLabels: { color: '#facc15', font: { size: 14 } },
-                            ticks: { backdropColor: '#1a1a1a', color: '#d6d3d1', stepSize: 2 },
-                            min: 0,
-                            max: 10
+            // Defer init to next frame to avoid race with layout
+            requestAnimationFrame(() => {
+                const oldCanvas = document.getElementById('classComparisonChart');
+                if (!oldCanvas) return;
+                // Do not call destroy to avoid clear errors; replace canvas instead
+                chartInstance = null;
+                const parent = oldCanvas.parentNode;
+                let canvas = oldCanvas;
+                if (parent) {
+                    const fresh = document.createElement('canvas');
+                    fresh.id = 'classComparisonChart';
+                    try { parent.replaceChild(fresh, oldCanvas); canvas = fresh; } catch {}
+                }
+                const ui = uiDict();
+                const labels = [ui.radar.clear, ui.radar.single, ui.radar.survivability, ui.radar.support, ui.radar.mobility, ui.radar.leveling, ui.radar.bossing];
+                const ds = [
+                  { id: 'necromancer', color: {bg:'rgba(130, 130, 130, 0.2)', border:'rgb(200, 200, 200)'}, data: [9, 6, 9, 9, 3, 9, 7] },
+                  { id: 'paladin',    color: {bg:'rgba(54, 162, 235, 0.2)',  border:'rgb(54, 162, 235)'},  data: [10, 9, 8, 9, 4, 8, 10] },
+                  { id: 'sorceress',  color: {bg:'rgba(255, 99, 132, 0.2)',  border:'rgb(255, 99, 132)'},  data: [10, 7, 5, 5, 10, 9, 8] },
+                  { id: 'amazon',     color: {bg:'rgba(255, 205, 86, 0.2)', border:'rgb(255, 205, 86)'}, data: [9, 9, 6, 2, 6, 4, 9] },
+                  { id: 'assassin',   color: {bg:'rgba(75, 192, 192, 0.2)', border:'rgb(75, 192, 192)'}, data: [8, 7, 7, 4, 7, 7, 9] },
+                  { id: 'barbarian',  color: {bg:'rgba(255, 159, 64, 0.2)', border:'rgb(255, 159, 64)'}, data: [6, 8, 8, 8, 5, 2, 6] },
+                  { id: 'druid',      color: {bg:'rgba(153, 102, 255, 0.2)', border:'rgb(153, 102, 255)'}, data: [7, 6, 10, 8, 4, 6, 8] }
+                ];
+                if (typeof Chart === 'undefined') { console.warn('Chart.js not available'); return; }
+                try {
+                    chartInstance = new Chart(canvas, {
+                        type: 'radar',
+                        data: { labels, datasets: ds.map(x => ({ label: classLabelFor(x.id, x.id), data: x.data, fill: true, backgroundColor: x.color.bg, borderColor: x.color.border, pointBackgroundColor: x.color.border })) },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            elements: { line: { tension: 0.1 } },
+                            plugins: {
+                                title: { display: true, text: ui.radar_title, color: '#facc15', font: { size: 18 } },
+                                legend: { position: 'bottom', labels: { color: '#d6d3d1' } }
+                            },
+                            scales: {
+                                r: {
+                                    angleLines: { color: 'rgba(168, 162, 158, 0.3)' },
+                                    grid: { color: 'rgba(168, 162, 158, 0.3)' },
+                                    pointLabels: { color: '#facc15', font: { size: 14 } },
+                                    ticks: { backdropColor: '#1a1a1a', color: '#d6d3d1', stepSize: 2 },
+                                    min: 0,
+                                    max: 10
+                                }
+                            }
                         }
-                    }
+                    });
+                } catch (e) {
+                    console.warn('chart init error', e);
                 }
             });
         }
@@ -1981,7 +1992,16 @@
             getAIAdvice
         });
 
-        document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', () => {
+            // Suppress benign Chart clear errors from certain environments
+            try {
+                window.addEventListener('error', (e) => {
+                    if (e && e.message && /reading 'clear'/.test(e.message)) {
+                        e.preventDefault();
+                        return false;
+                    }
+                }, true);
+            } catch {}
             renderNav();
             populateAIClassSelect();
             populateBpSelectors();
