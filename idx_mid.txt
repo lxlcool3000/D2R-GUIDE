@@ -1,0 +1,301 @@
+        };
+
+        let currentClass = 'home';
+        let chartInstance = null;
+        
+        const mainContent = document.getElementById('main-content');
+        const classNav = document.getElementById('class-nav');
+        const runeModal = document.getElementById('runeModal');
+        const tipsModal = document.getElementById('tipsModal');
+        const gearModal = document.getElementById('gearModal');
+        const baseModal = document.getElementById('baseModal');
+        const mfBossModal = document.getElementById('mfBossModal');
+        const aiModal = document.getElementById('aiModal');
+        const bpModal = document.getElementById('bpModal');
+        const mercModal = document.getElementById('mercModal');
+        const craftingModal = document.getElementById('craftingModal');
+
+        const runeListContainer = document.getElementById('runeListContainer');
+        const tipsListContainer = document.getElementById('tipsListContainer');
+        const gearListContainer = document.getElementById('gearListContainer');
+        const baseListContainer = document.getElementById('baseListContainer');
+        const mfBossListContainer = document.getElementById('mfBossListContainer');
+        const mercListContainer = document.getElementById('mercListContainer');
+        const craftingListContainer = document.getElementById('craftingListContainer');
+
+        const runeSearch = document.getElementById('runeSearch');
+        const runeTypeFilter = document.getElementById('runeTypeFilter');
+        const runeSocketFilter = document.getElementById('runeSocketFilter');
+        const gearSearch = document.getElementById('gearSearch');
+        const gearTypeFilter = document.getElementById('gearTypeFilter');
+
+        const aiClassSelect = document.getElementById('aiClassSelect');
+        const aiQueryInput = document.getElementById('aiQueryInput');
+        const aiResponseContainer = document.getElementById('aiResponseContainer');
+
+        const bpClassSelect = document.getElementById('bpClassSelect');
+        const bpTypeSelect = document.getElementById('bpTypeSelect');
+        const bpResultContainer = document.getElementById('bpResultContainer');
+
+
+        function formatRunewordFormula(formula) {
+            return formula.split('+').map(num => {
+                const rune = db.runes.find(r => r.id == num);
+                return rune ? `<span class="whitespace-nowrap">${num}#${rune.zh}</span>` : '';
+            }).join(' + ');
+        }
+        
+        function renderRunes() {
+            const query = runeSearch.value.toLowerCase();
+            const type = runeTypeFilter.value;
+            const sockets = runeSocketFilter.value;
+
+            // Filter individual runes
+            const filteredRunes = db.runes.filter(rune => {
+                return rune.zh.toLowerCase().includes(query) || 
+                       rune.en.toLowerCase().includes(query) || 
+                       rune.tw.toLowerCase().includes(query) ||
+                       rune.id.toString() === query;
+            });
+
+            // Filter runewords
+            const filteredRunewords = db.runewords.filter(rw => {
+                const nameMatch = rw.name.toLowerCase().includes(query);
+                const typeMatch = type === 'all' || rw.type.includes(type);
+                const socketMatch = sockets === 'all' || rw.sockets == sockets;
+                return (query === '' || nameMatch) && typeMatch && socketMatch;
+            });
+            
+            let html = '';
+
+            if(query !== '' && filteredRunes.length > 0) {
+                html += '<h4 class="text-amber-500 font-bold text-lg mb-2">符文查询结果</h4>';
+                html += '<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 mb-6">';
+                filteredRunes.forEach(rune => {
+                    html += `<div class="bg-stone-800 p-2 rounded text-stone-300"><strong>${rune.id}#</strong> ${rune.zh} / ${rune.tw} (${rune.en})</div>`;
+                });
+                html += '</div>';
+            }
+
+
+            html += '<h4 class="text-amber-500 font-bold text-lg mb-2">符文之语</h4>';
+            html += '<div class="grid grid-cols-1 md:grid-cols-2 gap-4">';
+            filteredRunewords.forEach(rw => {
+                html += `
+                    <div class="bg-stone-800 p-3 rounded">
+                        <p class="font-bold text-amber-400">${rw.name} <span class="text-stone-400 font-normal text-sm">(Lv ${rw.level})</span></p>
+                        <p class="text-sm text-stone-400">${rw.base}</p>
+                        <p class="text-stone-300 mt-1">${formatRunewordFormula(rw.formula)}</p>
+                    </div>
+                `;
+            });
+            html += '</div>';
+
+            if(filteredRunewords.length === 0 && filteredRunes.length === 0) {
+                 html = '<p class="text-stone-400 text-center py-4">未找到匹配的结果。</p>';
+            }
+            runeListContainer.innerHTML = html;
+        }
+
+        function renderTips() {
+            let html = '';
+            db.tips.forEach(tip => {
+                html += `
+                    <div class="bg-stone-800 p-4 rounded-lg border border-stone-700">
+                        <h4 class="font-bold text-lg text-amber-400 mb-2">${tip.title}</h4>
+                        <div class="text-stone-300">${tip.content}</div>
+                    </div>
+                `;
+            });
+            tipsListContainer.innerHTML = html;
+        }
+
+        function renderTopGear() {
+            const query = gearSearch.value.toLowerCase();
+            const type = gearTypeFilter.value;
+
+            const filteredGear = db.topGear.filter(item => {
+                const nameMatch = item.name.toLowerCase().includes(query);
+                const typeMatch = type === 'all' || item.category.includes(type);
+                return nameMatch && typeMatch;
+            });
+
+            let html = '<div class="grid md:grid-cols-2 gap-4">';
+            filteredGear.forEach(item => {
+                let statsHtml = item.key_stats.map(stat => `<li>${stat}</li>`).join('');
+                html += `
+                    <div class="bg-stone-800 p-4 rounded-lg border border-stone-700 flex flex-col">
+                        <h4 class="font-bold text-lg text-amber-400">${item.name}</h4>
+                        <p class="text-sm text-stone-400 mb-2">${item.type}</p>
+                        <ul class="list-disc list-inside text-stone-300 space-y-1 flex-grow">${statsHtml}</ul>
+                        <p class="mt-3 pt-3 border-t border-stone-600 text-amber-500 text-sm"><strong>适用:</strong> ${item.best_for}</p>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            if(filteredGear.length === 0) {
+                 html = '<p class="text-stone-400 text-center py-4">未找到匹配的装备。</p>';
+            }
+            gearListContainer.innerHTML = html;
+        }
+        
+        function renderUsefulBases() {
+            let html = '';
+            db.usefulBases.forEach(category => {
+                html += `<div class="bg-stone-800 p-4 rounded-lg border border-stone-700"><h4 class="text-amber-500 font-bold text-lg mb-3">${category.category}</h4>`;
+                if(category.intro) {
+                     html += `<p class="text-sm text-stone-400 mb-4">${category.intro}</p>`;
+                }
+                html += '<div class="grid md:grid-cols-2 gap-4">';
+                category.items.forEach(item => {
+                    html += `
+                        <div class="bg-stone-900 p-4 rounded">
+                            <p class="font-bold text-amber-400 text-lg">${item.icon} ${item.name}</p>
+                            ${item.sockets ? `<p class="text-sm text-stone-400 mb-2"><strong>需求孔数:</strong> ${item.sockets}</p>` : ''}
+                            <p class="text-stone-300">${item.why}</p>
+                            ${item.tip ? `<p class="text-xs text-amber-400/80 mt-2"><strong>提示:</strong> ${item.tip}</p>` : ''}
+                        </div>
+                    `;
+                });
+                html += '</div></div>';
+            });
+            baseListContainer.innerHTML = html;
+        }
+
+        function renderMfBossList() {
+             let html = '';
+            db.mfTargets.forEach(target => {
+                html += `
+                    <div class="bg-stone-800 p-4 rounded-lg border border-stone-700">
+                        <h4 class="font-bold text-lg text-amber-400 mb-1">${target.name}</h4>
+                        <p class="text-sm text-stone-400 mb-2"><strong>位置:</strong> ${target.location}</p>
+                        <p class="text-stone-300 mb-2">${target.why}</p>
+                        <p class="text-amber-500 text-sm"><strong>推荐职业:</strong> ${target.recommended}</p>
+                    </div>
+                `;
+            });
+            mfBossListContainer.innerHTML = html;
+        }
+
+        function renderMercenaries() {
+            let html = '';
+            db.mercenaries.forEach(category => {
+                html += `<h4 class="text-amber-500 font-bold text-lg mb-3">${category.category}</h4>`;
+                html += '<div class="grid md:grid-cols-2 gap-4 mb-6">';
+                category.items.forEach(item => {
+                    html += `
+                        <div class="bg-stone-800 p-4 rounded-lg border border-stone-700">
+                            <p class="font-bold text-amber-400 text-lg">${item.icon} ${item.name}</p>
+                            <div class="text-stone-300">${item.why}</div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            });
+            mercListContainer.innerHTML = html;
+        }
+
+        function renderCrafting() {
+            let html = '';
+            db.crafting.forEach(category => {
+                html += `<div class="mb-6"><h4 class="text-amber-500 font-bold text-lg mb-3">${category.name}</h4>`
+                html += `<p class="text-stone-300 mb-4">${category.intro}</p>`;
+                category.recipes.forEach(recipe => {
+                    html += `
+                        <div class="bg-stone-800 p-4 rounded-lg border border-stone-700 mb-4">
+                            <h5 class="font-bold text-lg text-amber-400 mb-2">${recipe.name}</h5>
+                            <p class="text-stone-300"><strong class="text-amber-500">公式:</strong> ${recipe.formula}</p>
+                            <div class="text-stone-300 mt-2">${recipe.stats}</div>
+                        </div>
+                    `;
+                });
+                html += `</div>`;
+            });
+            craftingListContainer.innerHTML = html;
+        }
+
+        function populateAIClassSelect() {
+            db.classes.forEach(cls => {
+                if (cls.id !== 'home') {
+                    const option = document.createElement('option');
+                    option.value = cls.id;
+                    option.textContent = cls.name;
+                    aiClassSelect.appendChild(option);
+                }
+            });
+        }
+        
+        async function getAIAdvice() {
+            const selectedClassId = aiClassSelect.value;
+            const userQuery = aiQueryInput.value;
+
+            if (!selectedClassId || !userQuery.trim()) {
+                aiResponseContainer.innerHTML = '<p class="text-red-400">请选择一个职业并描述你的问题。</p>';
+                return;
+            }
+
+            aiResponseContainer.innerHTML = '<div class="flex justify-center items-center h-full"><div class="loader"></div></div>';
+            
+            const classInfo = classData[selectedClassId];
+            let context = `职业: ${classInfo.title}\n简介: ${classInfo.intro}\n`;
+            classInfo.sections.forEach(sec => {
+                context += `${sec.title}:\n${sec.content.replace(/<[^>]*>/g, ' ')}\n\n`;
+            });
+            
+            const systemPrompt = `你是一位名为“迪卡·凯恩”的《暗黑破坏神2》专家顾问。你的所有知识都严格基于我提供的攻略文本。请使用中文，用迪卡·凯恩的口吻（“Stay a while and listen...”的风格）来回答玩家的问题。你的回答必须简洁、有条理，并直接引用或总结我提供的攻略内容，为玩家推荐最合适的玩法和装备。`;
+            const userPrompt = `这是关于一个职业的攻略资料：\n\n${context}\n\n---
+            现在，请根据以上资料，回答这位玩家的问题： "${userQuery}"`;
+            
+            /* apiKey removed: server-side */
+            const apiUrl = '/api/ai-advice';
+
+            try {
+                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ systemPrompt, userPrompt }) });
+
+                if (!response.ok) {
+                    throw new Error(`API 请求失败，状态码: ${response.status}`);
+                }
+
+                const result = await response.json();
+                const candidate = result.candidates?.[0];
+
+                if (candidate && candidate.content?.parts?.[0]?.text) {
+                    let text = candidate.content.parts[0].text;
+                    text = text.replace(/\n/g, '<br>');
+                    aiResponseContainer.innerHTML = `<p>${text}</p>`;
+                } else {
+                    throw new Error("未能从API获取有效回复。");
+                }
+
+            } catch (error) {
+                console.error("Gemini API Error:", error);
+                aiResponseContainer.innerHTML = '<p class="text-red-400">抱歉，赫拉迪姆的智慧暂时无法连接。请稍后再试。</p>';
+            }
+        }
+
+        function populateBpSelectors() {
+            bpClassSelect.innerHTML = '';
+            let firstClassId = '';
+            db.classes.forEach(cls => {
+                if (cls.id !== 'home') {
+                    if(!firstClassId) firstClassId = 'necromancer';
+                    const option = document.createElement('option');
+                    option.value = cls.id;
+                    option.textContent = cls.name;
+                    bpClassSelect.appendChild(option);
+                }
+            });
+            bpClassSelect.value = firstClassId;
+
+            bpTypeSelect.innerHTML = '';
+            Object.keys(db.breakpoints).forEach(key => {
+                const option = document.createElement('option');
+                option.value = key;
+                option.textContent = db.breakpoints[key].name;
+                bpTypeSelect.appendChild(option);
+            });
+            
+            bpClassSelect.addEventListener('change', renderBreakpoints);
+            bpTypeSelect.addEventListener('change', renderBreakpoints);
+        }
+

@@ -1,4 +1,304 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- 关键修正：添加内容安全策略(CSP)，允许应用连接到外部API和CDN资源 -->
+<title>暗黑破坏神2：重制版 交互式职业攻略</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Sanctuary Stone -->
+    <!-- Application Structure Plan: The application is designed as a single-page dashboard. The core structure features a main navigation bar with the seven classes. The default view presents a comparative analysis chart of all classes across key gameplay aspects (leveling, farming, support), allowing users to make an informed initial choice. Clicking a class icon dynamically updates the main content area to display that class's detailed guide. This guide is further organized into collapsible sections (Builds, Gear, etc.) for clarity. This non-linear, task-oriented structure was chosen because it allows users to quickly access specific information without scrolling through irrelevant content, which is far more efficient than a linear document layout. A searchable rune/runeword appendix, a tips modal, a top-tier gear list, a useful bases guide, and a list of top farming targets are available for quick reference. A new Gemini API feature, an AI Build Advisor, is added to provide personalized recommendations. The final addition is an interactive Breakpoint Calculator. New modals for Mercenaries and Crafting have been added. Filtering functionality for key data lists is the latest enhancement. -->
+    <!-- Visualization & Content Choices: 1. Class Comparison -> Goal: Compare -> Viz: Interactive Radar Chart (Chart.js) -> Interaction: Hover to highlight, click legend to toggle -> Justification: Provides an immediate, holistic view of each class's profile and strengths. 2. Equipment Progression -> Goal: Organize -> Viz: Styled HTML cards with icons -> Interaction: Reading -> Justification: Clearly separates gear by game stage with visual cues, making it easy to digest. 3. Build Details -> Goal: Organize/Inform -> Viz: Collapsible accordions (HTML/JS) -> Interaction: Click to expand/collapse -> Justification: Hides complex information by default, preventing visual overload. 4. Runeword/Tips/Gear/Bases/MF Targets/Mercs/Crafting -> Goal: Inform/Filter -> Viz: Searchable/filterable list in a modal -> Interaction: User types in search box and selects from dropdowns to narrow results -> Justification: Transforms static lists into powerful, interactive databases. 5. AI Build Advisor -> Goal: Synthesize & Recommend -> Viz: Text input + Modal Display -> Interaction: User types query, clicks button to get a Gemini-generated response -> Justification: Leverages LLM to create personalized advice based on the app's internal data, offering a dynamic, high-value feature. 6. Breakpoint Calculator -> Goal: Inform/Optimize -> Viz: Dropdown selectors and a dynamic table -> Interaction: User selects class/stat, table updates to show data -> Justification: Provides critical, technical optimization data in an easy-to-use interactive format, elevating the app to a true utility. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Noto Sans SC', sans-serif;
+            background-color: #1a1a1a;
+            color: #d1c7b1;
+        }
+        .bg-stone-950 { background-color: #0c0a09; }
+        .bg-stone-800 { background-color: #292524; }
+        .bg-stone-700 { background-color: #44403c; }
+        .border-stone-600 { border-color: #57534e; }
+        .text-amber-400 { color: #facc15; }
+        .text-amber-500 { color: #f59e0b; }
+        .text-stone-300 { color: #d6d3d1; }
+        .text-stone-400 { color: #a8a29e; }
+        .nav-item {
+            transition: all 0.2s ease-in-out;
+            filter: grayscale(80%);
+            opacity: 0.6;
+        }
+        .nav-item.active, .nav-item:hover {
+            filter: grayscale(0%);
+            opacity: 1;
+            transform: scale(1.1);
+            background-color: #44403c;
+        }
+        .content-section {
+            display: none;
+        }
+        .content-section.active {
+            display: block;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .accordion-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+        .modal {
+            transition: opacity 0.3s ease;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 700px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 450px;
+            max-height: 60vh;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 600px;
+            }
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #f59e0b;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="antialiased">
 
+    <div id="runeModal" class="modal fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none">
+        <div class="bg-stone-950 w-full max-w-4xl max-h-[90vh] rounded-lg border border-stone-600 shadow-lg flex flex-col">
+            <div class="p-4 border-b border-stone-600 flex-shrink-0">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-bold text-amber-400">💎 符文之语</h3>
+                    <button onclick="toggleRuneModal()" class="text-stone-300 hover:text-white text-2xl">&times;</button>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <input type="text" id="runeSearch" class="bg-stone-800 border border-stone-600 rounded px-3 py-2 text-stone-300 md:col-span-1" placeholder="搜索名称/编号...">
+                    <select id="runeTypeFilter" class="bg-stone-800 border border-stone-600 rounded px-3 py-2 text-stone-300">
+                        <option value="all">所有类型</option>
+                        <option value="weapon">武器</option>
+                        <option value="armor">盔甲</option>
+                        <option value="helm">头盔</option>
+                        <option value="shield">盾牌</option>
+                    </select>
+                    <select id="runeSocketFilter" class="bg-stone-800 border border-stone-600 rounded px-3 py-2 text-stone-300">
+                        <option value="all">所有镶孔</option>
+                        <option value="2">2孔</option>
+                        <option value="3">3孔</option>
+                        <option value="4">4孔</option>
+                        <option value="5">5孔</option>
+                        <option value="6">6孔</option>
+                    </select>
+                </div>
+            </div>
+            <div id="runeListContainer" class="p-4 overflow-y-auto">
+            </div>
+        </div>
+    </div>
+
+    <div id="tipsModal" class="modal fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none">
+        <div class="bg-stone-950 w-full max-w-4xl max-h-[90vh] rounded-lg border border-stone-600 shadow-lg flex flex-col">
+            <div class="p-4 border-b border-stone-600 flex justify-between items-center flex-shrink-0">
+                <h3 class="text-xl font-bold text-amber-400">💡 通关秘诀</h3>
+                <button onclick="toggleTipsModal()" class="text-stone-300 hover:text-white text-2xl">&times;</button>
+            </div>
+            <div id="tipsListContainer" class="p-4 overflow-y-auto space-y-4">
+            </div>
+        </div>
+    </div>
+
+    <div id="gearModal" class="modal fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none">
+        <div class="bg-stone-950 w-full max-w-4xl max-h-[90vh] rounded-lg border border-stone-600 shadow-lg flex flex-col">
+             <div class="p-4 border-b border-stone-600 flex-shrink-0">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="text-xl font-bold text-amber-400">🏆 极品装备</h3>
+                    <button onclick="toggleGearModal()" class="text-stone-300 hover:text-white text-2xl">&times;</button>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input type="text" id="gearSearch" class="bg-stone-800 border border-stone-600 rounded px-3 py-2 text-stone-300" placeholder="搜索名称...">
+                    <select id="gearTypeFilter" class="bg-stone-800 border border-stone-600 rounded px-3 py-2 text-stone-300">
+                        <option value="all">所有部位</option>
+                        <option value="helm">头盔</option>
+                        <option value="armor">盔甲</option>
+                        <option value="weapon">武器</option>
+                        <option value="shield">盾牌</option>
+                        <option value="belt">腰带</option>
+                        <option value="glove">手套</option>
+                        <option value="boot">鞋子</option>
+                        <option value="amulet">项链</option>
+                        <option value="ring">戒指</option>
+                        <option value="set">套装</option>
+                    </select>
+                </div>
+            </div>
+            <div id="gearListContainer" class="p-4 overflow-y-auto space-y-4">
+            </div>
+        </div>
+    </div>
+    
+    <div id="baseModal" class="modal fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none">
+        <div class="bg-stone-950 w-full max-w-4xl max-h-[90vh] rounded-lg border border-stone-600 shadow-lg flex flex-col">
+            <div class="p-4 border-b border-stone-600 flex justify-between items-center flex-shrink-0">
+                <h3 class="text-xl font-bold text-amber-400">🛡️ 实用底材</h3>
+                <button onclick="toggleBaseModal()" class="text-stone-300 hover:text-white text-2xl">&times;</button>
+            </div>
+            <div id="baseListContainer" class="p-4 overflow-y-auto space-y-6">
+            </div>
+        </div>
+    </div>
+
+    <div id="mfBossModal" class="modal fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none">
+        <div class="bg-stone-950 w-full max-w-4xl max-h-[90vh] rounded-lg border border-stone-600 shadow-lg flex flex-col">
+            <div class="p-4 border-b border-stone-600 flex justify-between items-center flex-shrink-0">
+                <h3 class="text-xl font-bold text-amber-400">🎯 MF劳模榜</h3>
+                <button onclick="toggleMfBossModal()" class="text-stone-300 hover:text-white text-2xl">&times;</button>
+            </div>
+            <div id="mfBossListContainer" class="p-4 overflow-y-auto space-y-4">
+            </div>
+        </div>
+    </div>
+
+    <div id="aiModal" class="modal fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none">
+        <div class="bg-stone-950 w-full max-w-2xl max-h-[90vh] rounded-lg border border-stone-600 shadow-lg flex flex-col">
+            <div class="p-4 border-b border-stone-600 flex justify-between items-center flex-shrink-0">
+                <h3 class="text-xl font-bold text-amber-400">✨ AI小顾问</h3>
+                <button onclick="toggleAIModal()" class="text-stone-300 hover:text-white text-2xl">&times;</button>
+            </div>
+            <div class="p-4 flex-grow flex flex-col gap-4 min-h-0">
+                <div>
+                    <label for="aiClassSelect" class="block mb-2 text-sm font-medium text-stone-300">选择你的职业:</label>
+                    <select id="aiClassSelect" class="bg-stone-800 border border-stone-600 text-stone-300 text-sm rounded-lg focus:ring-amber-500 focus:border-amber-500 block w-full p-2.5">
+                    </select>
+                </div>
+                <div>
+                    <label for="aiQueryInput" class="block mb-2 text-sm font-medium text-stone-300">描述你的情况 (例如: 刚到噩梦难度，有什么安全刷宝的玩法？):</label>
+                    <textarea id="aiQueryInput" rows="4" class="block p-2.5 w-full text-sm text-stone-300 bg-stone-800 rounded-lg border border-stone-600 focus:ring-amber-500 focus:border-amber-500" placeholder="请在这里输入你的问题..."></textarea>
+                </div>
+                <button onclick="getAIAdvice()" class="w-full bg-amber-500 hover:bg-amber-600 text-stone-950 font-bold py-2 px-4 rounded shadow-md transition transform hover:scale-105">
+                    获取建议
+                </button>
+                <div id="aiResponseContainer" class="mt-4 p-4 bg-stone-800 rounded-lg border border-stone-700 flex-grow overflow-y-auto">
+                     <p class="text-stone-400">你好，奈非天。我是迪卡·凯恩。告诉我你的困扰，我会根据赫拉迪姆的知识为你指点迷津。</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="bpModal" class="modal fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none">
+        <div class="bg-stone-950 w-full max-w-4xl max-h-[90vh] rounded-lg border border-stone-600 shadow-lg flex flex-col">
+            <div class="p-4 border-b border-stone-600 flex justify-between items-center flex-shrink-0">
+                <h3 class="text-xl font-bold text-amber-400">⚡ 档位进阶</h3>
+                <button onclick="toggleBpModal()" class="text-stone-300 hover:text-white text-2xl">&times;</button>
+            </div>
+            <div class="p-4 overflow-y-auto">
+                 <p class="text-stone-300 mb-4">属性档位是D2的核心机制。角色的动作速度并非线性提升，而是要在特定属性（如高速施法FCR）达到某个数值时，才会减少一帧的动作时间，实现质变。请选择职业和档位类型进行查询。</p>
+                 <div class="flex flex-wrap gap-4 mb-4">
+                     <div class="flex-grow">
+                         <label for="bpClassSelect" class="block mb-2 text-sm font-medium text-stone-300">选择职业:</label>
+                         <select id="bpClassSelect" class="bg-stone-800 border border-stone-600 text-stone-300 text-sm rounded-lg focus:ring-amber-500 focus:border-amber-500 block w-full p-2.5"></select>
+                     </div>
+                     <div class="flex-grow">
+                         <label for="bpTypeSelect" class="block mb-2 text-sm font-medium text-stone-300">选择档位类型:</label>
+                         <select id="bpTypeSelect" class="bg-stone-800 border border-stone-600 text-stone-300 text-sm rounded-lg focus:ring-amber-500 focus:border-amber-500 block w-full p-2.5"></select>
+                     </div>
+                 </div>
+                 <div id="bpResultContainer"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="mercModal" class="modal fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none">
+        <div class="bg-stone-950 w-full max-w-4xl max-h-[90vh] rounded-lg border border-stone-600 shadow-lg flex flex-col">
+            <div class="p-4 border-b border-stone-600 flex justify-between items-center flex-shrink-0">
+                <h3 class="text-xl font-bold text-amber-400">🧑‍🤝‍🧑 佣兵圣典</h3>
+                <button onclick="toggleMercModal()" class="text-stone-300 hover:text-white text-2xl">&times;</button>
+            </div>
+            <div id="mercListContainer" class="p-4 overflow-y-auto space-y-6">
+            </div>
+        </div>
+    </div>
+
+    <div id="craftingModal" class="modal fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50 opacity-0 pointer-events-none">
+        <div class="bg-stone-950 w-full max-w-4xl max-h-[90vh] rounded-lg border border-stone-600 shadow-lg flex flex-col">
+            <div class="p-4 border-b border-stone-600 flex justify-between items-center flex-shrink-0">
+                <h3 class="text-xl font-bold text-amber-400">🔨 合成物品</h3>
+                <button onclick="toggleCraftingModal()" class="text-stone-300 hover:text-white text-2xl">&times;</button>
+            </div>
+            <div id="craftingListContainer" class="p-4 overflow-y-auto space-y-4">
+            </div>
+        </div>
+    </div>
+
+    <header class="bg-stone-950 py-4 shadow-lg sticky top-0 z-40">
+        <div class="container mx-auto px-4 flex flex-col items-center">
+            <h1 class="text-3xl md:text-4xl font-bold text-amber-400 mb-4 text-center">暗黑破坏神2：重制版 交互式职业攻略</h1>
+            <nav id="class-nav" class="grid grid-cols-4 md:grid-cols-8 gap-2 md:gap-4">
+            </nav>
+        </div>
+    </header>
+
+    <main class="container mx-auto p-4 md:p-8">
+        <div id="main-content">
+        </div>
+    </main>
+    
+    <footer class="text-center py-6 text-stone-400 text-sm">
+        <div class="flex flex-wrap justify-center gap-4 mb-4">
+            <button onclick="toggleRuneModal()" class="bg-stone-700 hover:bg-stone-600 text-amber-400 font-bold py-2 px-4 rounded shadow-md transition transform hover:scale-105">
+                <span class="mr-2">💎</span>符文之语
+            </button>
+            <button onclick="toggleTipsModal()" class="bg-stone-700 hover:bg-stone-600 text-amber-400 font-bold py-2 px-4 rounded shadow-md transition transform hover:scale-105">
+                <span class="mr-2">💡</span>通关秘诀
+            </button>
+            <button onclick="toggleGearModal()" class="bg-stone-700 hover:bg-stone-600 text-amber-400 font-bold py-2 px-4 rounded shadow-md transition transform hover:scale-105">
+                <span class="mr-2">🏆</span>极品装备
+            </button>
+            <button onclick="toggleBaseModal()" class="bg-stone-700 hover:bg-stone-600 text-amber-400 font-bold py-2 px-4 rounded shadow-md transition transform hover:scale-105">
+                <span class="mr-2">🛡️</span>实用底材
+            </button>
+             <button onclick="toggleMfBossModal()" class="bg-stone-700 hover:bg-stone-600 text-amber-400 font-bold py-2 px-4 rounded shadow-md transition transform hover:scale-105">
+                <span class="mr-2">🎯</span>MF劳模榜
+            </button>
+             <button onclick="toggleBpModal()" class="bg-stone-700 hover:bg-stone-600 text-amber-400 font-bold py-2 px-4 rounded shadow-md transition transform hover:scale-105">
+                <span class="mr-2">⚡</span>档位进阶
+            </button>
+            <button onclick="toggleMercModal()" class="bg-stone-700 hover:bg-stone-600 text-amber-400 font-bold py-2 px-4 rounded shadow-md transition transform hover:scale-105">
+                <span class="mr-2">🧑‍🤝‍🧑</span>佣兵圣典
+            </button>
+            <button onclick="toggleCraftingModal()" class="bg-stone-700 hover:bg-stone-600 text-amber-400 font-bold py-2 px-4 rounded shadow-md transition transform hover:scale-105">
+                <span class="mr-2">🔨</span>合成物品
+            </button>
+             <button onclick="toggleAIModal()" class="bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 px-4 rounded shadow-md transition transform hover:scale-105">
+                <span class="mr-2">✨</span>AI小顾问
+            </button>
+        </div>
+        <p>基于社区攻略文档构建的交互式查询应用。祝您好运，奈非天！</p>
+    </footer>
+
+    <script>
         const db = {
             classes: [
                 { id: 'home', name: '职业总览', icon: '📜' },
@@ -596,18 +896,11 @@
             const userPrompt = `这是关于一个职业的攻略资料：\n\n${context}\n\n---
             现在，请根据以上资料，回答这位玩家的问题： "${userQuery}"`;
             
-            const apiKey = "";
-            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+            /* apiKey removed: server-side */
+            const apiUrl = '/api/ai-advice';
 
             try {
-                const response = await fetch(apiUrl, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{ parts: [{ text: userPrompt }] }],
-                        systemInstruction: { parts: [{ text: systemPrompt }] },
-                    })
-                });
+                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ systemPrompt, userPrompt }) });
 
                 if (!response.ok) {
                     throw new Error(`API 请求失败，状态码: ${response.status}`);
@@ -856,7 +1149,7 @@
             let navHtml = '';
             db.classes.forEach(cls => {
                 navHtml += `
-                    <button class="nav-item flex flex-col items-center p-2 rounded-lg border border-transparent" data-class-id="${cls.id}" data-action="navigate" data-arg="${cls.id}">
+                    <button class="nav-item flex flex-col items-center p-2 rounded-lg border border-transparent" data-class-id="${cls.id}" onclick="navigate('${cls.id}')">
                         <span class="text-3xl mb-1">${cls.icon}</span>
                         <span class="font-semibold text-sm text-stone-300">${cls.name}</span>
                     </button>
@@ -867,9 +1160,7 @@
 
         function renderRadarChart() {
             const ctx = document.getElementById('classComparisonChart');
-
-            try { if (ctx && !ctx.getAttribute('height')) ctx.setAttribute('height','360'); } catch {}
-if (!ctx) return;
+            if (!ctx) return;
             if (chartInstance) {
                 chartInstance.destroy();
             }
@@ -885,7 +1176,7 @@ if (!ctx) return;
                     { label: '德鲁伊', data: [7, 6, 10, 8, 4, 6, 8], fill: true, backgroundColor: 'rgba(153, 102, 255, 0.2)', borderColor: 'rgb(153, 102, 255)', pointBackgroundColor: 'rgb(153, 102, 255)'},
                 ]
             };
-            chartInstance = new (window.Chart || Chart)(ctx, {
+            chartInstance = new Chart(ctx, {
                 type: 'radar',
                 data: data,
                 options: {
@@ -930,50 +1221,8 @@ if (!ctx) return;
             navigate('home');
         });
 
-    
+    </script>
 
+</body>
+</html>
 
-
-// === Delegation Core (no inline, CSP-safe) ===
-(function delegationCore(){
-  const ACTION_ATTR = 'data-action';
-  const ARG_ATTR = 'data-arg';
-
-  function callAction(el, ev){
-    const action = el.getAttribute(ACTION_ATTR);
-    if (!action) return;
-    const fn = window[action];
-    if (typeof fn !== 'function') return;
-    const arg = el.hasAttribute(ARG_ATTR) ? el.getAttribute(ARG_ATTR) : null;
-    try { arg !== null ? fn(arg, ev) : fn(ev); } catch(e){ console.error(e); }
-  }
-
-  // 统一 click 委托
-  document.addEventListener('click', (ev) => {
-    const el = ev.target.closest && ev.target.closest('['+ACTION_ATTR+']');
-    if (!el) return;
-    callAction(el, ev);
-  });
-
-  // 键盘可达性（Enter/Space）
-  document.addEventListener('keydown', (ev) => {
-    if (ev.key !== 'Enter' && ev.key !== ' ') return;
-    const el = ev.target.closest && ev.target.closest('['+ACTION_ATTR+']');
-    if (!el) return;
-    const isButtonLike = /^(BUTTON|A|INPUT)$/i.test(el.tagName) || el.getAttribute('role') === 'button';
-    if (!isButtonLike) return;
-    ev.preventDefault();
-    callAction(el, ev);
-  });
-
-  // 导航容器兜底（可选）
-  const nav = document.getElementById('class-nav');
-  if (nav && !nav.__navBound) {
-    nav.addEventListener('click', (e)=>{
-      const btn = e.target.closest('.nav-item['+ACTION_ATTR+']');
-      if (!btn) return;
-      callAction(btn, e);
-    });
-    nav.__navBound = true;
-  }
-})();

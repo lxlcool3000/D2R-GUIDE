@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+dist-inline/
+release/
+
+# Environment / secrets
+.env
+
+# OS/editor junk
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+

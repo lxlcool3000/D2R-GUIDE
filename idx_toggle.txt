@@ -1,0 +1,109 @@
+1001:                     if(frameData && frameData[i]){
+1002:                        headers += `<th class="px-6 py-3 text-center">${frameData[i]}F</th>`;
+1003:                        cells += `<td class="px-6 py-4 text-center">${val}</td>`;
+1004:                     }
+1005:                 });
+1006: 
+1007:                 html += `<th class="px-6 py-3">帧数 (Frames)</th>` + headers;
+1008:                 html += `</tr></thead><tbody><tr class="bg-stone-800 border-b border-stone-600"><td class="px-6 py-4 font-medium">需要 ${bpTypeData.name} (%)</td>` + cells;
+1009:                 html += `</tr></tbody></table></div>`;
+1010:             }
+1011: 
+1012:             bpResultContainer.innerHTML = html;
+1013:         }
+1014: 
+1015: 
+1016:         function toggleRuneModal() {
+1017:             if (runeModal.classList.contains('opacity-0')) {
+1018:                 runeModal.classList.remove('opacity-0', 'pointer-events-none');
+1019:                 renderRunes();
+1020:             } else {
+1021:                 runeModal.classList.add('opacity-0', 'pointer-events-none');
+1022:             }
+1023:         }
+1024: 
+1025:         function toggleTipsModal() {
+1026:             if (tipsModal.classList.contains('opacity-0')) {
+1027:                 tipsModal.classList.remove('opacity-0', 'pointer-events-none');
+1028:                 renderTips();
+1029:             } else {
+1030:                 tipsModal.classList.add('opacity-0', 'pointer-events-none');
+1031:             }
+1032:         }
+1033:         
+1034:         function toggleGearModal() {
+1035:             if (gearModal.classList.contains('opacity-0')) {
+1036:                 gearModal.classList.remove('opacity-0', 'pointer-events-none');
+1037:                 renderTopGear();
+1038:             } else {
+1039:                 gearModal.classList.add('opacity-0', 'pointer-events-none');
+1040:             }
+1041:         }
+1042: 
+1043:         function toggleBaseModal() {
+1044:             if (baseModal.classList.contains('opacity-0')) {
+1045:                 baseModal.classList.remove('opacity-0', 'pointer-events-none');
+1046:                 renderUsefulBases();
+1047:             } else {
+1048:                 baseModal.classList.add('opacity-0', 'pointer-events-none');
+1049:             }
+1050:         }
+1051: 
+1052:         function toggleMfBossModal() {
+1053:             if (mfBossModal.classList.contains('opacity-0')) {
+1054:                 mfBossModal.classList.remove('opacity-0', 'pointer-events-none');
+1055:                 renderMfBossList();
+1056:             } else {
+1057:                 mfBossModal.classList.add('opacity-0', 'pointer-events-none');
+1058:             }
+1059:         }
+1060: 
+1061:         function toggleAIModal() {
+1062:             if (aiModal.classList.contains('opacity-0')) {
+1063:                 aiModal.classList.remove('opacity-0', 'pointer-events-none');
+1064:             } else {
+1065:                 aiModal.classList.add('opacity-0', 'pointer-events-none');
+1066:             }
+1067:         }
+1068:         
+1069:         function toggleBpModal() {
+1070:             if (bpModal.classList.contains('opacity-0')) {
+1071:                 bpModal.classList.remove('opacity-0', 'pointer-events-none');
+1072:                 bpTypeSelect.value = 'fcr';
+1073:                 renderBreakpoints();
+1074:             } else {
+1075:                 bpModal.classList.add('opacity-0', 'pointer-events-none');
+1076:             }
+1077:         }
+1078:         
+1079:         function toggleMercModal() {
+1080:             if (mercModal.classList.contains('opacity-0')) {
+1081:                 mercModal.classList.remove('opacity-0', 'pointer-events-none');
+1082:                 renderMercenaries();
+1083:             } else {
+1084:                 mercModal.classList.add('opacity-0', 'pointer-events-none');
+1085:             }
+1086:         }
+1087:         
+1088:         function toggleCraftingModal() {
+1089:             if (craftingModal.classList.contains('opacity-0')) {
+1090:                 craftingModal.classList.remove('opacity-0', 'pointer-events-none');
+1091:                 renderCrafting();
+1092:             } else {
+1093:                 craftingModal.classList.add('opacity-0', 'pointer-events-none');
+1094:             }
+1095:         }
+1096: 
+1097:         runeSearch.addEventListener('input', renderRunes);
+1098:         runeTypeFilter.addEventListener('change', renderRunes);
+1099:         runeSocketFilter.addEventListener('change', renderRunes);
+1100:         gearSearch.addEventListener('input', renderTopGear);
+1101:         gearTypeFilter.addEventListener('change', renderTopGear);
+1102:         
+1103:         function renderContent(classId) {
+1104:             const data = classData[classId];
+1105:             if (!data) return;
+1106: 
+1107:             let contentHtml = `
+1108:                 <div class="content-section active" id="content-${classId}">
+1109:                     <h2 class="text-3xl font-bold text-amber-400 mb-2">${data.title}</h2>

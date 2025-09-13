@@ -1,0 +1,106 @@
+export const uiZh = {
+  lang_label: '语言',
+  tags_all: '所有标签',
+  tag_search_placeholder: '搜索标签...',
+  match_mode_or: '匹配逻辑: OR',
+  match_mode_and: '匹配逻辑: AND',
+  reset_all: '重置全部筛选',
+  clear_tags: '清除标签',
+  rune_matches: '符文查询结果',
+  tooltip_search: '搜索',
+  tooltip_type: '类型',
+  tooltip_sockets: '孔数',
+  tooltip_dropdown: '下拉标签',
+  tooltip_tags: '标签',
+  bp_intro: '属性档位是D2的核心机制。角色的动作速度并非线性提升，而是要在特定属性（如高速施法FCR）达到某个数值时，才会减少一帧的动作时间，实现质变。请选择职业和档位类型进行查询。',
+  label_select_class: '选择职业:',
+  label_select_bp_type: '选择档位类型:',
+  ai_select_label: '选择你的职业:',
+  ai_input_label: '描述你的情况 (例如: 刚到噩梦难度，有什么安全刷宝的玩法？):',
+  ai_input_placeholder: '请在这里输入你的问题...',
+  ai_submit: '获取建议',
+  bp_no_data: '该职业无此档位数据。',
+  titles: {
+    runewords: '符文之语',
+    tips: '通关秘诀',
+    gear: '极品装备',
+    bases: '实用底材',
+    mf: 'MF劳模榜',
+    ai: 'AI小顾问',
+    bp: '断档计算',
+    merc: '佣兵',
+    crafting: '合成物品'
+  },
+  no_results: '未找到匹配的结果。',
+  no_gear: '未找到匹配的装备。',
+  bp_note_ias: '注意：IAS(提升攻击速度)档位因武器、技能不同而极其复杂，建议使用专门的IAS计算器查询。',
+  frames: '帧数 (Frames)',
+  required_prefix: '需要',
+  radar_title: '七大职业综合能力雷达图',
+  radar: { clear: '清场速度', single: '单体伤害', survivability: '生存能力', support: '团队辅助', mobility: '机动性', leveling: '开荒友好度', bossing: 'Boss击杀能力' }
+};
+
+export const uiEn = {
+  lang_label: 'Lang',
+  tags_all: 'All tags',
+  tag_search_placeholder: 'Search tags...',
+  match_mode_or: 'Match: OR',
+  match_mode_and: 'Match: AND',
+  reset_all: 'Reset All',
+  clear_tags: 'Clear Tags',
+  rune_matches: 'Rune matches',
+  tooltip_search: 'Search',
+  tooltip_type: 'Type',
+  tooltip_sockets: 'Sockets',
+  tooltip_dropdown: 'Select tag',
+  tooltip_tags: 'Tags',
+  bp_intro: 'Breakpoints are core to D2. Many actions improve discretely — reaching specific thresholds (e.g., FCR) reduces animation time by one frame. Select a class and type to view tables.',
+  label_select_class: 'Select Class:',
+  label_select_bp_type: 'Select Breakpoint Type:',
+  ai_select_label: 'Choose your class:',
+  ai_input_label: 'Describe your situation (e.g., just reached Nightmare — safe MF options?):',
+  ai_input_placeholder: 'Type your question here...',
+  ai_submit: 'Get Advice',
+  bp_no_data: 'No data available for this class.',
+  titles: {
+    runewords: 'Runewords',
+    tips: 'Tips',
+    gear: 'Top Gear',
+    bases: 'Useful Bases',
+    mf: 'MF Targets',
+    ai: 'AI Advisor',
+    bp: 'Breakpoints',
+    merc: 'Mercenaries',
+    crafting: 'Crafting'
+  },
+  no_results: 'No results found.',
+  no_gear: 'No matching gear found.',
+  bp_note_ias: 'Note: IAS breakpoints vary widely by weapon/skill; use a dedicated IAS calculator.',
+  frames: 'Frames',
+  required_prefix: 'Required',
+  radar_title: 'Class Capability Radar',
+  radar: { clear: 'Clear Speed', single: 'Single Target', survivability: 'Survivability', support: 'Support', mobility: 'Mobility', leveling: 'Leveling Ease', bossing: 'Bossing' }
+};
+
+// Per-class label maps (IDs -> localized names)
+export const classLabelsZh = {
+  home: '职业总览',
+  necromancer: '死灵法师',
+  paladin: '圣骑士',
+  sorceress: '巫师',
+  amazon: '亚马逊',
+  assassin: '猎法者',
+  barbarian: '野蛮人',
+  druid: '德鲁伊'
+};
+
+export const classLabelsEn = {
+  home: 'Overview',
+  necromancer: 'Necromancer',
+  paladin: 'Paladin',
+  sorceress: 'Sorceress',
+  amazon: 'Amazon',
+  assassin: 'Assassin',
+  barbarian: 'Barbarian',
+  druid: 'Druid'
+};
