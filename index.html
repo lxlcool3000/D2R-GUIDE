@@ -823,8 +823,8 @@
         try { uiLang = localStorage.getItem('uiLang') || 'zh'; } catch {}
         let tagLabelsZh = {};
         let tagLabelsEn = {};
-        let classLabelsZh = {};
-        let classLabelsEn = {};
+        let classLabelsZh = { home: '职业总览', necromancer: '死灵法师', paladin: '圣骑士', sorceress: '巫师', amazon: '亚马逊', assassin: '猎法者', barbarian: '野蛮人', druid: '德鲁伊' };
+        let classLabelsEn = { home: 'Overview', necromancer: 'Necromancer', paladin: 'Paladin', sorceress: 'Sorceress', amazon: 'Amazon', assassin: 'Assassin', barbarian: 'Barbarian', druid: 'Druid' };
         // i18n UI dictionaries (fallbacks; overridden by js/i18n.js if present)
         let uiZh = { lang_label:'语言', tags_all:'所有标签', tag_search_placeholder:'搜索标签...', match_mode_or:'匹配逻辑: OR', match_mode_and:'匹配逻辑: AND', reset_all:'重置全部筛选', clear_tags:'清除标签', rune_matches:'符文查询结果', titles:{runewords:'符文之语', tips:'通关秘诀', gear:'极品装备', bases:'实用底材', mf:'MF劳模榜', ai:'AI小顾问', bp:'断档计算', merc:'佣兵', crafting:'合成物品'}, no_results:'未找到匹配的结果。', no_gear:'未找到匹配的装备。', bp_note_ias:'注意：IAS(提升攻击速度)档位因武器、技能不同而极其复杂，建议使用专门的IAS计算器查询。', frames:'帧数 (Frames)', required_prefix:'需要' };
         let uiEn = { lang_label:'Lang', tags_all:'All tags', tag_search_placeholder:'Search tags...', match_mode_or:'Match: OR', match_mode_and:'Match: AND', reset_all:'Reset All', clear_tags:'Clear Tags', rune_matches:'Rune matches', titles:{runewords:'Runewords', tips:'Tips', gear:'Top Gear', bases:'Useful Bases', mf:'MF Targets', ai:'AI Advisor', bp:'Breakpoints', merc:'Mercenaries', crafting:'Crafting'}, no_results:'No results found.', no_gear:'No matching gear found.', bp_note_ias:'Note: IAS breakpoints vary widely by weapon/skill; use a dedicated IAS calculator.', frames:'Frames', required_prefix:'Required' };
@@ -1806,9 +1806,9 @@
         function renderRadarChart() {
             const ctx = document.getElementById('classComparisonChart');
             if (!ctx) return;
-            if (chartInstance) {
-                chartInstance.destroy();
-            }
+            const ChartLib = (typeof globalThis !== 'undefined' && globalThis.Chart) ? globalThis.Chart : (typeof window !== 'undefined' ? window.Chart : null);
+            if (!ChartLib) { console.warn('Chart.js not available'); return; }
+            if (chartInstance) { try { chartInstance.destroy(); } catch {} }
             const ui = uiDict();
             const labels = [ui.radar.clear, ui.radar.single, ui.radar.survivability, ui.radar.support, ui.radar.mobility, ui.radar.leveling, ui.radar.bossing];
             const ds = [
@@ -1822,7 +1822,7 @@
             ];
             const datasets = ds.map(x => ({ label: classLabelFor(x.id, x.id), data: x.data, fill: true, backgroundColor: x.color.bg, borderColor: x.color.border, pointBackgroundColor: x.color.border }));
             const data = { labels, datasets };
-            chartInstance = new Chart(ctx, {
+            chartInstance = new ChartLib(ctx, {
                 type: 'radar',
                 data: data,
                 options: {
