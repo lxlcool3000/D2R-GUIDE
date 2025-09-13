@@ -57,23 +57,10 @@ function main() {
     }
   } catch {}
 
-  // Inline Chart.js (v3.9.1) for file:// compatibility (avoid CSP/CDN and ensure availability)
+  // Remove any external Chart.js script tags; inline build uses offline renderer
   try {
-    const chartCdn = 'https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js';
-    const res = execSync(`curl -L --silent ${chartCdn}`, { encoding: 'utf8' });
-    if (res && res.length > 1024) {
-      // Replace external script tag if present; otherwise inject inline chart before module script
-      const externalRe = /<script[^>]+src=\"https:\/\/cdn\.jsdelivr\.net\/npm\/chart\.js[^>]*><\/script>/i;
-      if (externalRe.test(inlined)) {
-        inlined = inlined.replace(externalRe, `<script>\n${res}\n</script>`);
-      } else {
-        inlined = inlined.replace('<script type="module">', `<script>\n${res}\n</script>\n<script type=\"module\">`);
-      }
-    }
-  } catch (e) {
-    // If curl not available or fetch failed, keep original tag; file:// might still work online
-    console.warn('[pack:inline] inline Chart.js skipped:', e.message || e);
-  }
+    inlined = inlined.replace(/<script[^>]+src=\"https:\/\/cdn\.jsdelivr\.net\/npm\/chart\.js[^>]*><\/script>\s*/ig, '');
+  } catch {}
 
   // Mark as inline build to adjust runtime behavior if needed
   try {
