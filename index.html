@@ -133,6 +133,7 @@
                     </select>
                 </div>
                 <div id="runeTagChips" class="mt-2 flex flex-wrap gap-2"></div>
+                <div id="runeActiveChips" class="mt-2 flex flex-wrap gap-2"></div>
                 <div class="mt-2 flex items-center gap-3">
                     <button id="runeTagModeBtn" class="px-2 py-1 rounded text-xs bg-stone-700 text-stone-200 border border-stone-600 hover:bg-stone-600">匹配逻辑: OR</button>
                     <input id="runeTagSearch" class="bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-300 text-xs" placeholder="搜索标签..." />
@@ -208,6 +209,7 @@
                     </select>
                 </div>
                 <div id="gearTagChips" class="mt-2 flex flex-wrap gap-2"></div>
+                <div id="gearActiveChips" class="mt-2 flex flex-wrap gap-2"></div>
                 <div class="mt-2 flex items-center gap-3">
                     <button id="gearTagModeBtn" class="px-2 py-1 rounded text-xs bg-stone-700 text-stone-200 border border-stone-600 hover:bg-stone-600">匹配逻辑: OR</button>
                     <input id="gearTagSearch" class="bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-300 text-xs" placeholder="搜索标签..." />
@@ -246,6 +248,7 @@
                     </select>
                 </div>
                 <div id="baseTagChips" class="mt-2 flex flex-wrap gap-2"></div>
+                <div id="baseActiveChips" class="mt-2 flex flex-wrap gap-2"></div>
                 <div class="mt-2 flex items-center gap-3">
                     <button id="baseTagModeBtn" class="px-2 py-1 rounded text-xs bg-stone-700 text-stone-200 border border-stone-600 hover:bg-stone-600">匹配逻辑: OR</button>
                     <input id="baseTagSearch" class="bg-stone-800 border border-stone-600 rounded px-2 py-1 text-stone-300 text-xs" placeholder="搜索标签..." />
@@ -863,6 +866,21 @@
             }
         }
 
+        function renderActiveChips(containerId, selectedSet, onRemove){
+            const el = document.getElementById(containerId);
+            if (!el) return;
+            el.innerHTML = '';
+            if (!selectedSet || selectedSet.size === 0) return;
+            [...selectedSet].forEach(tag => {
+                const chip = document.createElement('button');
+                chip.className = 'px-2 py-0.5 rounded text-xs bg-amber-500 text-stone-950 border border-amber-600 hover:bg-amber-400';
+                chip.title = tagLabel(tag);
+                chip.textContent = tagLabel(tag) + ' ×';
+                chip.onclick = () => { selectedSet.delete(tag); if (typeof onRemove === 'function') onRemove(); };
+                el.appendChild(chip);
+            });
+        }
+
         function formatRunewordFormula(formula) {
             return formula.split('+').map(num => {
                 const rune = db.runes.find(r => r.id == num);
@@ -1216,7 +1234,8 @@
             Object.keys(db.breakpoints).forEach(key => {
                 const option = document.createElement('option');
                 option.value = key;
-                option.textContent = db.breakpoints[key].name;
+                const ui = uiDict();
+                option.textContent = (ui.bp_types && ui.bp_types[key]) ? ui.bp_types[key] : db.breakpoints[key].name;
                 bpTypeSelect.appendChild(option);
             });
             
@@ -1415,6 +1434,9 @@
                     renderTagChips('gearTagChips', gearTagOptions, selectedGearTags, ()=>{ renderTopGear(); saveGearTagsState(); }, gearTagSearch);
                     renderTagChips('runeTagChips', runeTagOptions, selectedRuneTags, ()=>{ renderRunes(); saveRuneTagsState(); }, runeTagSearch);
                     renderTagChips('baseTagChips', baseTagOptions, selectedBaseTags, ()=>{ renderUsefulBases(); saveBaseTagsState(); }, baseTagSearch);
+                    renderActiveChips('gearActiveChips', selectedGearTags, ()=>{ renderTopGear(); saveGearTagsState(); renderActiveChips('gearActiveChips', selectedGearTags, ()=>{ renderTopGear(); saveGearTagsState(); }); });
+                    renderActiveChips('runeActiveChips', selectedRuneTags, ()=>{ renderRunes(); saveRuneTagsState(); renderActiveChips('runeActiveChips', selectedRuneTags, ()=>{ renderRunes(); saveRuneTagsState(); }); });
+                    renderActiveChips('baseActiveChips', selectedBaseTags, ()=>{ renderUsefulBases(); saveBaseTagsState(); renderActiveChips('baseActiveChips', selectedBaseTags, ()=>{ renderUsefulBases(); saveBaseTagsState(); }); });
                     applyStaticI18n();
                     // Refresh class-labelled UI elements
                     try {
@@ -1461,6 +1483,9 @@
                     renderTagChips('gearTagChips', gearTagOptions, selectedGearTags, ()=>{ renderTopGear(); saveGearTagsState(); }, gearTagSearch);
                     renderTagChips('runeTagChips', runeTagOptions, selectedRuneTags, ()=>{ renderRunes(); saveRuneTagsState(); }, runeTagSearch);
                     renderTagChips('baseTagChips', baseTagOptions, selectedBaseTags, ()=>{ renderUsefulBases(); saveBaseTagsState(); }, baseTagSearch);
+                    renderActiveChips('gearActiveChips', selectedGearTags, ()=>{ renderTopGear(); saveGearTagsState(); renderActiveChips('gearActiveChips', selectedGearTags, ()=>{ renderTopGear(); saveGearTagsState(); }); });
+                    renderActiveChips('runeActiveChips', selectedRuneTags, ()=>{ renderRunes(); saveRuneTagsState(); renderActiveChips('runeActiveChips', selectedRuneTags, ()=>{ renderRunes(); saveRuneTagsState(); }); });
+                    renderActiveChips('baseActiveChips', selectedBaseTags, ()=>{ renderUsefulBases(); saveBaseTagsState(); renderActiveChips('baseActiveChips', selectedBaseTags, ()=>{ renderUsefulBases(); saveBaseTagsState(); }); });
                     // Apply static UI translations
                     applyStaticI18n();
                     // Refresh class-labelled UI
@@ -1554,6 +1579,8 @@
                   ['i18n_btn_ai', ui.titles.ai]
                 ];
                 btnMap.forEach(([id, text])=>{ const el=document.getElementById(id); if (el) el.textContent = text; });
+                // BP type select options
+                try { const bpSel = document.getElementById('bpTypeSelect'); if (bpSel && ui.bp_types) { [...bpSel.options].forEach(o=>{ if (ui.bp_types[o.value]) o.textContent = ui.bp_types[o.value]; }); } } catch {}
             }
 
             // Initial chips render
@@ -1561,6 +1588,9 @@
                 renderTagChips('gearTagChips', gearTagOptions, selectedGearTags, ()=>{ renderTopGear(); saveGearTagsState(); }, gearTagSearch);
                 renderTagChips('runeTagChips', runeTagOptions, selectedRuneTags, ()=>{ renderRunes(); saveRuneTagsState(); }, runeTagSearch);
                 renderTagChips('baseTagChips', baseTagOptions, selectedBaseTags, ()=>{ renderUsefulBases(); saveBaseTagsState(); }, baseTagSearch);
+                renderActiveChips('gearActiveChips', selectedGearTags, ()=>{ renderTopGear(); saveGearTagsState(); renderActiveChips('gearActiveChips', selectedGearTags, ()=>{ renderTopGear(); saveGearTagsState(); }); });
+                renderActiveChips('runeActiveChips', selectedRuneTags, ()=>{ renderRunes(); saveRuneTagsState(); renderActiveChips('runeActiveChips', selectedRuneTags, ()=>{ renderRunes(); saveRuneTagsState(); }); });
+                renderActiveChips('baseActiveChips', selectedBaseTags, ()=>{ renderUsefulBases(); saveBaseTagsState(); renderActiveChips('baseActiveChips', selectedBaseTags, ()=>{ renderUsefulBases(); saveBaseTagsState(); }); });
                 applyStaticI18n();
             } catch (e) { console.warn('chips render error', e); }
 
@@ -1570,19 +1600,19 @@
             if (gearModeBtn) {
                 const modeText = () => (gearTagMode==='AND' ? uiDict().match_mode_and : uiDict().match_mode_or);
                 gearModeBtn.textContent = modeText();
-                gearModeBtn.onclick = () => { gearTagMode = (gearTagMode === 'OR' ? 'AND' : 'OR'); gearModeBtn.textContent = modeText(); renderTopGear(); saveGearTagsState(); };
+                gearModeBtn.onclick = () => { gearTagMode = (gearTagMode === 'OR' ? 'AND' : 'OR'); gearModeBtn.textContent = modeText(); renderTopGear(); saveGearTagsState(); renderActiveChips('gearActiveChips', selectedGearTags, ()=>{ renderTopGear(); saveGearTagsState(); }); };
             }
             const runeModeBtn = document.getElementById('runeTagModeBtn');
             if (runeModeBtn) {
                 const modeText = () => (runeTagMode==='AND' ? uiDict().match_mode_and : uiDict().match_mode_or);
                 runeModeBtn.textContent = modeText();
-                runeModeBtn.onclick = () => { runeTagMode = (runeTagMode === 'OR' ? 'AND' : 'OR'); runeModeBtn.textContent = modeText(); renderRunes(); saveRuneTagsState(); };
+                runeModeBtn.onclick = () => { runeTagMode = (runeTagMode === 'OR' ? 'AND' : 'OR'); runeModeBtn.textContent = modeText(); renderRunes(); saveRuneTagsState(); renderActiveChips('runeActiveChips', selectedRuneTags, ()=>{ renderRunes(); saveRuneTagsState(); }); };
             }
             const baseModeBtn = document.getElementById('baseTagModeBtn');
             if (baseModeBtn) {
                 const modeText = () => (baseTagMode==='AND' ? uiDict().match_mode_and : uiDict().match_mode_or);
                 baseModeBtn.textContent = modeText();
-                baseModeBtn.onclick = () => { baseTagMode = (baseTagMode === 'OR' ? 'AND' : 'OR'); baseModeBtn.textContent = modeText(); renderUsefulBases(); saveBaseTagsState(); };
+                baseModeBtn.onclick = () => { baseTagMode = (baseTagMode === 'OR' ? 'AND' : 'OR'); baseModeBtn.textContent = modeText(); renderUsefulBases(); saveBaseTagsState(); renderActiveChips('baseActiveChips', selectedBaseTags, ()=>{ renderUsefulBases(); saveBaseTagsState(); }); };
             }
             } catch (e) { console.warn('mode btn error', e); }
 
@@ -1594,6 +1624,7 @@
                 gearSearchInput.addEventListener('input', (e) => {
                     gearTagSearch = e.target.value || '';
                     renderTagChips('gearTagChips', gearTagOptions, selectedGearTags, ()=>{ renderTopGear(); saveGearTagsState(); }, gearTagSearch);
+                    renderActiveChips('gearActiveChips', selectedGearTags, ()=>{ renderTopGear(); saveGearTagsState(); });
                     saveGearTagsState();
                 });
             }
@@ -1603,6 +1634,7 @@
                 runeSearchInput.addEventListener('input', (e) => {
                     runeTagSearch = e.target.value || '';
                     renderTagChips('runeTagChips', runeTagOptions, selectedRuneTags, ()=>{ renderRunes(); saveRuneTagsState(); }, runeTagSearch);
+                    renderActiveChips('runeActiveChips', selectedRuneTags, ()=>{ renderRunes(); saveRuneTagsState(); });
                     saveRuneTagsState();
                 });
             }
@@ -1612,6 +1644,7 @@
                 baseSearchInput.addEventListener('input', (e) => {
                     baseTagSearch = e.target.value || '';
                     renderTagChips('baseTagChips', baseTagOptions, selectedBaseTags, ()=>{ renderUsefulBases(); saveBaseTagsState(); }, baseTagSearch);
+                    renderActiveChips('baseActiveChips', selectedBaseTags, ()=>{ renderUsefulBases(); saveBaseTagsState(); });
                     saveBaseTagsState();
                 });
             }
@@ -1684,6 +1717,7 @@
                 gearClearBtn.onclick = () => {
                     selectedGearTags.clear();
                     renderTagChips('gearTagChips', gearTagOptions, selectedGearTags, ()=>{ renderTopGear(); saveGearTagsState(); }, gearTagSearch);
+                    renderActiveChips('gearActiveChips', selectedGearTags, ()=>{ renderTopGear(); saveGearTagsState(); });
                     renderTopGear();
                     saveGearTagsState();
                 };
@@ -1693,6 +1727,7 @@
                 runeClearBtn.onclick = () => {
                     selectedRuneTags.clear();
                     renderTagChips('runeTagChips', runeTagOptions, selectedRuneTags, ()=>{ renderRunes(); saveRuneTagsState(); }, runeTagSearch);
+                    renderActiveChips('runeActiveChips', selectedRuneTags, ()=>{ renderRunes(); saveRuneTagsState(); });
                     renderRunes();
                     saveRuneTagsState();
                 };
@@ -1702,6 +1737,7 @@
                 baseClearBtn.onclick = () => {
                     selectedBaseTags.clear();
                     renderTagChips('baseTagChips', baseTagOptions, selectedBaseTags, ()=>{ renderUsefulBases(); saveBaseTagsState(); }, baseTagSearch);
+                    renderActiveChips('baseActiveChips', selectedBaseTags, ()=>{ renderUsefulBases(); saveBaseTagsState(); });
                     renderUsefulBases();
                     saveBaseTagsState();
                 };

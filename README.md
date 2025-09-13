@@ -1,15 +1,20 @@
-# D2R Guide (Refactored) — How to Run
+# D2R Guide (Refactored)
+
+## Online Demo
+- GitHub Pages: https://lxlcool3000.github.io/D2R-GUIDE/
+
+## How to Run Locally
 
 ## Why you saw CORS errors
 Opening `index.html` via `file://` blocks ES Module loading in Chrome.
 Use a tiny local server instead (any http:// URL is fine).
 
-## Option A — Node (no install beyond Node itself)
+### Option A — Node (no install beyond Node itself)
 1) Open a terminal here (this folder).
 2) Run: `node server.js`
 3) Visit: http://localhost:5173
 
-## Option B — npx http-server (if you prefer)
+### Option B — npx http-server (if you prefer)
 - `npx http-server -c-1 -p 5173 .`
 
 ## CSP already adjusted
