@@ -44,9 +44,17 @@ function main() {
 
   let inlined = transformToInline(html, dbSrc, classSrc);
 
-  // Inline Chart.js for file:// compatibility (avoid CSP/CDN and ensure availability)
+  // Strip CDN-only tags not needed for offline (Tailwind CDN, Google Fonts)
   try {
-    const chartCdn = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js';
+    inlined = inlined
+      .replace(/<script[^>]*src=\"https:\/\/cdn\.tailwindcss\.com\"[^>]*><\/script>\s*/ig, '')
+      .replace(/<link[^>]*href=\"https:\/\/fonts\.googleapis\.com[^>]*>\s*/ig, '')
+      .replace(/<link[^>]*href=\"https:\/\/fonts\.gstatic\.com[^>]*>\s*/ig, '');
+  } catch {}
+
+  // Inline Chart.js (v3.9.1) for file:// compatibility (avoid CSP/CDN and ensure availability)
+  try {
+    const chartCdn = 'https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js';
     const res = execSync(`curl -L --silent ${chartCdn}`, { encoding: 'utf8' });
     if (res && res.length > 1024) {
       // Replace external script tag if present; otherwise inject inline chart before module script
@@ -54,13 +62,18 @@ function main() {
       if (externalRe.test(inlined)) {
         inlined = inlined.replace(externalRe, `<script>\n${res}\n</script>`);
       } else {
-        inlined = inlined.replace('<script type="module">', `<script>\n${res}\n</script>\n<script type="module">`);
+        inlined = inlined.replace('<script type="module">', `<script>\n${res}\n</script>\n<script type=\"module\">`);
       }
     }
   } catch (e) {
     // If curl not available or fetch failed, keep original tag; file:// might still work online
     console.warn('[pack:inline] inline Chart.js skipped:', e.message || e);
   }
+
+  // Mark as inline build to adjust runtime behavior if needed
+  try {
+    inlined = inlined.replace('<script type="module">', '<script>window.IS_INLINE=true;</script>\n<script type="module">');
+  } catch {}
 
   const outDir = path.join(ROOT, 'dist-inline');
   // Write HTML
