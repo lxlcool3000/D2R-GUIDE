@@ -28,7 +28,8 @@ function transformToInline(html, dbSrc, classDataSrc) {
   const dbInline = dbSrc.replace(/export\s+const\s+db\s*=/, 'const db =');
   const classInline = classDataSrc.replace(/export\s+const\s+classData\s*=/, 'const classData =');
 
-  const newScript = `<script>\n${dbInline}\n\n${classInline}\n\n${body}\n</script>`;
+  // Keep module semantics so dynamic import() works and falls back gracefully
+  const newScript = `<script type="module">\n${dbInline}\n\n${classInline}\n\n${body}\n</script>`;
   return before + newScript + after;
 }
 
