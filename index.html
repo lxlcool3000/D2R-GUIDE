@@ -1804,8 +1804,10 @@
         }
 
         function renderRadarChart() {
-            const ctx = document.getElementById('classComparisonChart');
-            if (!ctx) return;
+            const canvas = document.getElementById('classComparisonChart');
+            if (!canvas) return;
+            const ctx = (canvas && canvas.getContext) ? canvas.getContext('2d') : null;
+            if (!ctx) { console.warn('2D context not available'); return; }
             const ChartLib = (typeof globalThis !== 'undefined' && globalThis.Chart) ? globalThis.Chart : (typeof window !== 'undefined' ? window.Chart : null);
             if (!ChartLib) { console.warn('Chart.js not available'); return; }
             if (chartInstance) { try { chartInstance.destroy(); } catch {} }
