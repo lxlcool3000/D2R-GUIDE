@@ -747,6 +747,8 @@
 
         let currentClass = 'home';
         let chartInstance = null;
+        let radarRenderScheduled = false;
+        let radarInitialized = false;
         
         const mainContent = document.getElementById('main-content');
         const classNav = document.getElementById('class-nav');
@@ -1406,6 +1408,27 @@
             try {
             // Attempt to load external tag config and i18n dictionaries
             (async () => {
+                if (location && location.protocol === 'file:') {
+                    try {
+                        populateSelect('gearTagFilter', gearTagOptions);
+                        populateSelect('runeTagFilter', runeTagOptions);
+                        populateSelect('baseTagFilter', baseTagOptions);
+                        renderTagChips('gearTagChips', gearTagOptions, selectedGearTags, ()=>{ renderTopGear(); saveGearTagsState(); }, gearTagSearch);
+                        renderTagChips('runeTagChips', runeTagOptions, selectedRuneTags, ()=>{ renderRunes(); saveRuneTagsState(); }, runeTagSearch);
+                        renderTagChips('baseTagChips', baseTagOptions, selectedBaseTags, ()=>{ renderUsefulBases(); saveBaseTagsState(); }, baseTagSearch);
+                        renderActiveChips('gearActiveChips', selectedGearTags, ()=>{ renderTopGear(); saveGearTagsState(); renderActiveChips('gearActiveChips', selectedGearTags, ()=>{ renderTopGear(); saveGearTagsState(); }); });
+                        renderActiveChips('runeActiveChips', selectedRuneTags, ()=>{ renderRunes(); saveRuneTagsState(); renderActiveChips('runeActiveChips', selectedRuneTags, ()=>{ renderRunes(); saveRuneTagsState(); }); });
+                        renderActiveChips('baseActiveChips', selectedBaseTags, ()=>{ renderUsefulBases(); saveBaseTagsState(); renderActiveChips('baseActiveChips', selectedBaseTags, ()=>{ renderUsefulBases(); saveBaseTagsState(); }); });
+                        applyStaticI18n();
+                        renderNav();
+                        renderTopGear();
+                        renderRunes();
+                        renderUsefulBases();
+                        try { renderBreakpoints(); } catch {}
+                        try { renderRadarChart(); } catch {}
+                    } catch (e) { console.warn('file:// init fallback error', e); }
+                    return;
+                }
                 try {
                     const mod = await import('./js/tags.js');
                     if (mod.tagLabelsZh) tagLabelsZh = mod.tagLabelsZh;
@@ -1581,6 +1604,10 @@
                 btnMap.forEach(([id, text])=>{ const el=document.getElementById(id); if (el) el.textContent = text; });
                 // BP type select options
                 try { const bpSel = document.getElementById('bpTypeSelect'); if (bpSel && ui.bp_types) { [...bpSel.options].forEach(o=>{ if (ui.bp_types[o.value]) o.textContent = ui.bp_types[o.value]; }); } } catch {}
+                // Recreate radar chart on language change
+                radarInitialized = false;
+                if (chartInstance && typeof chartInstance.destroy === 'function') { try { chartInstance.destroy(); } catch {} }
+                chartInstance = null;
             }
 
             // Initial chips render
@@ -1804,61 +1831,66 @@
         }
 
         function renderRadarChart() {
-            const canvas = document.getElementById('classComparisonChart');
-            if (!canvas) return;
-            const ctx = (canvas && canvas.getContext) ? canvas.getContext('2d') : null;
-            if (!ctx) { console.warn('2D context not available'); return; }
-            const ChartLib = (typeof globalThis !== 'undefined' && globalThis.Chart) ? globalThis.Chart : (typeof window !== 'undefined' ? window.Chart : null);
-            if (!ChartLib) { console.warn('Chart.js not available'); return; }
-            if (chartInstance) { try { chartInstance.destroy(); } catch {} }
-            const ui = uiDict();
-            const labels = [ui.radar.clear, ui.radar.single, ui.radar.survivability, ui.radar.support, ui.radar.mobility, ui.radar.leveling, ui.radar.bossing];
-            const ds = [
-              { id: 'necromancer', color: {bg:'rgba(130, 130, 130, 0.2)', border:'rgb(200, 200, 200)'}, data: [9, 6, 9, 9, 3, 9, 7] },
-              { id: 'paladin',    color: {bg:'rgba(54, 162, 235, 0.2)',  border:'rgb(54, 162, 235)'},  data: [10, 9, 8, 9, 4, 8, 10] },
-              { id: 'sorceress',  color: {bg:'rgba(255, 99, 132, 0.2)',  border:'rgb(255, 99, 132)'},  data: [10, 7, 5, 5, 10, 9, 8] },
-              { id: 'amazon',     color: {bg:'rgba(255, 205, 86, 0.2)', border:'rgb(255, 205, 86)'}, data: [9, 9, 6, 2, 6, 4, 9] },
-              { id: 'assassin',   color: {bg:'rgba(75, 192, 192, 0.2)', border:'rgb(75, 192, 192)'}, data: [8, 7, 7, 4, 7, 7, 9] },
-              { id: 'barbarian',  color: {bg:'rgba(255, 159, 64, 0.2)', border:'rgb(255, 159, 64)'}, data: [6, 8, 8, 8, 5, 2, 6] },
-              { id: 'druid',      color: {bg:'rgba(153, 102, 255, 0.2)', border:'rgb(153, 102, 255)'}, data: [7, 6, 10, 8, 4, 6, 8] }
-            ];
-            const datasets = ds.map(x => ({ label: classLabelFor(x.id, x.id), data: x.data, fill: true, backgroundColor: x.color.bg, borderColor: x.color.border, pointBackgroundColor: x.color.border }));
-            const data = { labels, datasets };
-            chartInstance = new ChartLib(ctx, {
-                type: 'radar',
-                data: data,
-                options: {
-                    maintainAspectRatio: false,
-                    responsive: true,
-                    elements: { line: { tension: 0.1 } },
-                    plugins: {
-                        title: { display: true, text: ui.radar_title, color: '#facc15', font: { size: 18 } },
-                        legend: { 
-                            position: 'bottom', 
-                            labels: { color: '#d6d3d1' },
-                            onHover: (event) => {
-                                event.native.target.style.cursor = 'pointer';
-                            },
-                            onLeave: (event) => {
-                                event.native.target.style.cursor = 'default';
+            if (radarRenderScheduled) return;
+            radarRenderScheduled = true;
+            requestAnimationFrame(() => {
+                radarRenderScheduled = false;
+                if (radarInitialized) return;
+                const canvas = document.getElementById('classComparisonChart');
+                if (!canvas) return;
+                const ChartLib = (typeof globalThis !== 'undefined' && globalThis.Chart) ? globalThis.Chart : (typeof window !== 'undefined' ? window.Chart : null);
+                if (!ChartLib) { console.warn('Chart.js not available'); return; }
+                try { ChartLib.defaults.animation = false; } catch {}
+                const ui = uiDict();
+                const labels = [ui.radar.clear, ui.radar.single, ui.radar.survivability, ui.radar.support, ui.radar.mobility, ui.radar.leveling, ui.radar.bossing];
+                const ds = [
+                  { id: 'necromancer', color: {bg:'rgba(130, 130, 130, 0.2)', border:'rgb(200, 200, 200)'}, data: [9, 6, 9, 9, 3, 9, 7] },
+                  { id: 'paladin',    color: {bg:'rgba(54, 162, 235, 0.2)',  border:'rgb(54, 162, 235)'},  data: [10, 9, 8, 9, 4, 8, 10] },
+                  { id: 'sorceress',  color: {bg:'rgba(255, 99, 132, 0.2)',  border:'rgb(255, 99, 132)'},  data: [10, 7, 5, 5, 10, 9, 8] },
+                  { id: 'amazon',     color: {bg:'rgba(255, 205, 86, 0.2)', border:'rgb(255, 205, 86)'}, data: [9, 9, 6, 2, 6, 4, 9] },
+                  { id: 'assassin',   color: {bg:'rgba(75, 192, 192, 0.2)', border:'rgb(75, 192, 192)'}, data: [8, 7, 7, 4, 7, 7, 9] },
+                  { id: 'barbarian',  color: {bg:'rgba(255, 159, 64, 0.2)', border:'rgb(255, 159, 64)'}, data: [6, 8, 8, 8, 5, 2, 6] },
+                  { id: 'druid',      color: {bg:'rgba(153, 102, 255, 0.2)', border:'rgb(153, 102, 255)'}, data: [7, 6, 10, 8, 4, 6, 8] }
+                ];
+                const datasets = ds.map(x => ({ label: classLabelFor(x.id, x.id), data: x.data, fill: true, backgroundColor: x.color.bg, borderColor: x.color.border, pointBackgroundColor: x.color.border }));
+                const config = {
+                    type: 'radar',
+                    data: { labels, datasets },
+                    options: {
+                        maintainAspectRatio: false,
+                        responsive: true,
+                        elements: { line: { tension: 0.1 } },
+                        plugins: {
+                            title: { display: true, text: ui.radar_title, color: '#facc15', font: { size: 18 } },
+                            legend: {
+                                position: 'bottom',
+                                labels: { color: '#d6d3d1' },
+                                onHover: (event) => { if (event && event.native && event.native.target) event.native.target.style.cursor = 'pointer'; },
+                                onLeave: (event) => { if (event && event.native && event.native.target) event.native.target.style.cursor = 'default'; }
+                            }
+                        },
+                        scales: {
+                            r: {
+                                angleLines: { color: 'rgba(168, 162, 158, 0.3)' },
+                                grid: { color: 'rgba(168, 162, 158, 0.3)' },
+                                pointLabels: { color: '#facc15', font: { size: 14 } },
+                                ticks: { backdropColor: '#1a1a1a', color: '#d6d3d1', stepSize: 2 },
+                                min: 0,
+                                max: 10
                             }
                         }
-                    },
-                    scales: {
-                        r: {
-                            angleLines: { color: 'rgba(168, 162, 158, 0.3)' },
-                            grid: { color: 'rgba(168, 162, 158, 0.3)' },
-                            pointLabels: { color: '#facc15', font: { size: 14 } },
-                            ticks: {
-                                backdropColor: '#1a1a1a',
-                                color: '#d6d3d1',
-                                stepSize: 2
-                            },
-                            min: 0,
-                            max: 10
-                        }
                     }
+                };
+                const safeInit = (cnv) => { try { chartInstance = new ChartLib(cnv, config); } catch (err) { console.warn('chart init error', err); } };
+                // Always render on a fresh canvas to avoid first-frame clear() errors
+                let target = canvas;
+                if (canvas.parentNode) {
+                    const fresh = document.createElement('canvas');
+                    fresh.id = 'classComparisonChart';
+                    try { canvas.parentNode.replaceChild(fresh, canvas); target = fresh; } catch {}
                 }
+                radarInitialized = true;
+                safeInit(target);
             });
         }
         
