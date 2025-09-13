@@ -50,6 +50,11 @@ function main() {
       .replace(/<script[^>]*src=\"https:\/\/cdn\.tailwindcss\.com\"[^>]*><\/script>\s*/ig, '')
       .replace(/<link[^>]*href=\"https:\/\/fonts\.googleapis\.com[^>]*>\s*/ig, '')
       .replace(/<link[^>]*href=\"https:\/\/fonts\.gstatic\.com[^>]*>\s*/ig, '');
+    // Ensure local CSS files are linked for offline styles
+    const cssLinks = ['<link rel="stylesheet" href="css/tailwind.css">', '<link rel="stylesheet" href="css/styles.css">'].join('\n    ');
+    if (!/href=\"css\/tailwind\.css\"/i.test(inlined)) {
+      inlined = inlined.replace(/<title>[^<]*<\/title>/i, (m)=> m + "\n    " + cssLinks);
+    }
   } catch {}
 
   // Inline Chart.js (v3.9.1) for file:// compatibility (avoid CSP/CDN and ensure availability)
