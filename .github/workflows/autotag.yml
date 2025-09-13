@@ -1,0 +1,55 @@
+name: Auto-tag on version bump
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  autotag:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Detect version change
+        id: detect
+        shell: bash
+        run: |
+          set -euo pipefail
+          CURR_VER=$(node -p "require('./package.json').version")
+          git show HEAD^:package.json > prev.json 2>/dev/null || echo '{}' > prev.json
+          PREV_VER=$(node -p "(function(){try{return require('./prev.json').version||''}catch(e){return ''}})()")
+          echo "Current: $CURR_VER | Previous: $PREV_VER"
+          echo "curr_version=$CURR_VER" >> $GITHUB_OUTPUT
+          if [ "$CURR_VER" != "$PREV_VER" ] && [ -n "$CURR_VER" ]; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create and push tag
+        if: steps.detect.outputs.changed == 'true'
+        shell: bash
+        env:
+          VER: ${{ steps.detect.outputs.curr_version }}
+        run: |
+          set -euo pipefail
+          TAG="v${VER}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists; skipping."
+            exit 0
+          fi
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git tag -a "$TAG" -m "release: $TAG"
+          git push origin "$TAG"
+
