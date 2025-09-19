@@ -1,7 +1,7 @@
 # D2R Guide (Refactored)
 
 ## Online Demo
-- GitHub Pages: https://lxlcool3000.github.io/D2R-GUIDE/
+- GitHub Pages: https://shlxl.github.io/D2R-GUIDE/
 
 ## How to Run Locally
 
